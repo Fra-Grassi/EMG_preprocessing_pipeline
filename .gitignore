@@ -1,0 +1,26 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# MATLAB temporary files
+*.asv
+*.m~
+*.autosave
+
+# Raw and derived electrophysiology data
+*.bdf
+*.edf
+*.set
+*.fdt
+
+# Conventional local data and output directories
+data/
+raw_data/
+processed_data/
+derivatives/
+output/
+outputs/
+results/
+
+# Machine-specific local configuration
+EMG_00_settings_local.m

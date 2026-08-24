@@ -1,0 +1,686 @@
+% ---------------------------------------------------------------------------------------------------------------------
+% EMG Preprocessing Pipeline
+% Version: 2
+% author: Francesco Grassi
+% date: August 2026
+%
+% For questions or issues, contact:
+% francesco.grassi@uni-goettingen.de
+%
+% ---------------------------------------------------------------------------------------------------------------------
+% 
+% ++++ EMG_02_preprocessing_feature_extraction ++++
+%
+% This is a modified version of the original pipeline recommended by Rutkowska et al., 2024
+% (https://github.com/TommasoGhilardi/EMG_Pipelines).
+% - Baseline correction
+%   Baseline correction algorithm is modified to be able to handle arbitrary portions of the pre-stimulus baseline
+%   (e.g., from -3 to -2 s).
+%
+% Features:
+%   1. Filtering
+%   2. Downsampling
+%   3. Signal rectification
+%   4. Epoch extraction
+%   5. Artefact detection and rejection
+%   6. Feature extraction (by bins, optionally)
+%   7. Baseline correction
+%   8. Within-muscle and within-subject standardization
+%   9. Trial averaging
+% (See Rutkowska et al., 20204, for details)
+%
+% Additional Features:
+% - Output data maintains original trial number (as before trial rejection).
+%
+% Usage:
+% 1. Run the script to select raw SET files (of individual participants) for processing.
+%
+% Requirements:
+% - MATLAB
+% - EEGLab Toolbox
+% - Custom functions (e.g., save_parameters_to_file.m)
+%
+% Output:
+% - Processed SET files in the specified output directory.
+% - Extracted features.
+% - Log of rejected artefacts.
+%
+%% 2.1 - Toolboxes and functions
+
+clearvars
+
+% Load preprocessing parameters
+load('resources\preprocessing_settings.mat');
+
+addpath(sets.eeglab_dir)  % EEGLab
+
+eeglab; close all;  % start EEGLab and close popup windows
+
+%% 2.2 - Select input data
+
+% Select one or multiple raw SET datasets to process
+% (datasets created in 'p01_raw2set_fix_triggers_split_dyads.m')
+
+[file, thissubjectpath] = uigetfile(sprintf('%s*_raw.set', sets.rawSET_participants_dir), 'MultiSelect', 'on');  % show gui to select files
+
+% Ensure the file names are stored as a cell array even when only one file is selected
+if ischar(file)
+    file = {file};
+end
+
+%% 2.3 - Prepare output variables
+
+% Preallocate cell array to store feature amplitudes.
+% Array has one row per participant, with columns for:
+% - Subject ID
+% - Condition
+% - Trial number (if averaging: number of averaged trials; if not averaging, original trial number before artefact rejection)
+% - Bin
+% - One column with feature amplitudes per channel
+out_features = cell(length(file), length(sets.emg_channel_names) + 4);
+
+% If performing artefact detection, preallocate a cell array to store info on rejected trials.
+% Array has one row per participant, with colums for:
+% - Subject ID
+% - Number of rejected trials across all conditions
+% - Percentage of rejected trials across all conditions
+% - One column with number of rejected trials per condition
+% - One column with percentage of rejected trials per condition
+if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
+    reject_info = cell(length(file), 3 + length(sets.condition_names) * 2);
+end
+
+fprintf('\nOutput variables CREATED\n\n');
+
+%% 2.4 - Main loop
+
+% Loop through all selected dataset and apply preprocessing steps
+for si = 1:length(file)
+    
+    %% 2.4.1 - Load dataset
+    
+    EMG = pop_loadset('filename', file{si}, 'filepath', sets.rawSET_participants_dir);
+    EMG_bkp = EMG;  % temporary for debugging
+    
+    fprintf('\nDataset loading COMPLETE\n\n');
+
+    % Extract Subject ID
+    subj_ID = EMG.subject;
+
+    %% 2.4.2 - Add events with condition names
+    % (These are added at same latency as the punchline triggers)
+
+    n_event = length(EMG.event);  % get original event number
+    for ev = 1:n_event
+        for trigger = 1:length(sets.condition_triggers)
+            % Check if event is in the list
+            % (Considering the event might be either numerical or char)
+            if EMG.event(ev).type == sets.condition_triggers(trigger) || ...
+                    strcmp(EMG.event(ev).type, num2str(sets.condition_triggers(trigger)))
+                
+                EMG.event(end+1) = EMG.event(ev);  % copy event at the end of the list
+                EMG.event(end).latency = EMG.event(ev).latency;  % ensure it has same latency as trigger event
+                EMG.event(end).type = sets.condition_names{trigger};  % add condition name
+                
+            end
+        end
+    end
+    
+    EMG = eeg_checkset(EMG, 'eventconsistency');     % check all events for consistency
+
+    fprintf('\n\nAdding condition events COMPLETE\n');
+    
+    %% 2.4.3 - Channel selection and re-referencing
+    % Extract only EMG channels.
+    % If data contains two channels per muscle (BioSemi format), also re-reference channels,
+    % i.e, subtract one channel from the other within each muscle pair (Ch1 - Ch2)
+    
+    % Check if EMG channels are in BioSemi format (one row per muscle)
+    if size(sets.emg_channel_numbers, 1) > 1
+        % Preallocate matrix to store re-referenced data
+        reref_data = zeros(length(sets.emg_channel_names), size(EMG.data,2));
+        
+        % For each indicated muscle, subtract channels
+        for i = 1:length(sets.emg_channel_names)
+            reref_data(i, :) = EMG.data(sets.emg_channel_numbers(i, 1), :) - EMG.data(sets.emg_channel_numbers(i, 2), :);
+        end
+        
+        % Assign re-referenced data back to EMG struct
+        EMG.data = reref_data;
+    else
+        % If not in BioSemi format (only one row, one element per muscle), just extract EMG channels
+        EMG.data = EMG.data(sets.emg_channel_numbers, :);
+    end
+
+    % Update channel number and labels
+    EMG.nbchan = length(sets.emg_channel_names);
+
+    if ~isempty(EMG.chanlocs)
+        EMG.chanlocs = EMG.chanlocs(1:length(sets.emg_channel_names));
+        for i = 1:length(sets.emg_channel_names)
+            EMG.chanlocs(i).labels = sets.emg_channel_names{i};
+        end
+    end
+    
+    fprintf('\nChannel re-referencing COMPLETE\n\n');
+    
+    %% 2.4.4 - Filtering
+    
+    % Always remove DC offset
+    EMG = pop_rmbase(EMG, [], []);
+    
+    % Check if main filter is on
+    if sets.do_filtering_main
+        
+        % Based on the type of filter, assign cutoffs
+        if strcmp(sets.filter_type_main, 'bandpass')
+            % if bandpass, use the specified low- and high-cutoff
+            low_cutoff = sets.filter_cutoff_main(1);  % lower edge of pass band
+            high_cutoff = sets.filter_cutoff_main(2);  % higher edge of pass bad
+        elseif strcmp(sets.filter_type_main, 'highpass')
+            % if highpass, set lower edge to specified cutoff and no higher edge
+            low_cutoff = sets.filter_cutoff_main;
+            high_cutoff = [];
+        elseif strcmp(sets.filter_type_main, 'lowpass')
+            % if lowpass, set higher edge to specified cutoff and no lower edge
+            low_cutoff = [];
+            high_cutoff = sets.filter_cutoff_main;    
+        else
+            % Raise an error if the value is not valid
+            error('Invalid value for filter type. It must be ''bandpass'', ''highpass'', or ''lowpass''. See p00_settings.m ''Filters'' section.');
+        end
+        
+        % Apply filter depending on type
+        EMG = pop_eegfiltnew(EMG, ...
+            'locutoff', low_cutoff, ...
+            'hicutoff', high_cutoff); 
+
+    end
+    
+    % Check if notch filter is on
+    if sets.do_filtering_notch
+        % Use a tight band round cutoff frequency
+        EMG = pop_eegfiltnew(EMG, ...
+            'locutoff', sets.filter_cutoff_notch - 2.5, ...
+            'hicutoff', sets.filter_cutoff_notch + 2.5, ...
+            'revfilt', 1);  % use notch instead of band-pass
+            
+    end
+    
+    EMG = eeg_checkset(EMG);
+
+    fprintf('\nFiltering COMPLETE\n\n');
+    
+    %% 2.4.5 - Downsampling
+    
+    % Check if downsampling in on
+    if sets.do_downsampling
+        EMG = pop_resample(EMG, sets.downsample_rate);
+
+        fprintf('\nDownsampling COMPLETE\n\n');
+    end
+
+    %% 2.4.6 - Signal rectification
+    
+    % Check if rectification is on
+    if sets.do_rectifying
+        % Rectify based on method
+        if strcmp(sets.rectify_method, 'abs')
+            EMG.data = abs(EMG.data);
+        end
+
+        fprintf('\nSignal rectification COMPLETE\n');
+    end
+     
+    %% 2.4.7 - Epoch data & count trials
+    
+    % Epoch data
+    EMG = pop_epoch(EMG, sets.condition_names, sets.epoch_length, 'epochinfo', 'yes');
+    
+    % Remove additional triggers
+    EMG = pop_selectevent(EMG, 'type', sets.condition_names, 'deleteevents', 'on');
+    
+    % Add a new event field keeping track of the trial number
+    EMG = pop_editeventfield(EMG, 'trial_number', 1:length(EMG.event));
+
+    fprintf('\nEpoching COMPLETE\n\n');
+    
+    %% 2.4.8 - Artefact detection
+    
+    % Check if automatic artefact detection is on
+    if sets.do_artefact_detection_automatic
+        
+        % Automatic artefact detection on baseline ----
+        
+        % % Epoch data to only include baseline
+        EMG_baseline = pop_epoch(EMG, sets.condition_names, [sets.epoch_length(1), 0], 'epochinfo', 'yes');
+        
+        % Detect artefacts in the baseline
+        EMG_baseline = pop_jointprob(EMG_baseline,...
+            1,...  % analyze channels (not components)
+            1:length(EMG.chanlocs),...  % analyze all channels
+            sets.artefact_threshold_baseline,...  % threshold within each channel
+            sets.artefact_threshold_baseline,...  % threshold among all channels
+            1,...
+            0,...  % only flag trials, don't remove them
+            0, [], 0);
+
+        % Automatic artefact detection on trial ----
+
+        % Epoch data to only include trial
+        EMG_trial = pop_epoch(EMG, sets.condition_names, [0, epoch_length(2)], 'epochinfo', 'yes');
+
+        % Detect artefacts in trial
+        EMG_trial = pop_jointprob(EMG_trial, 1, 1:length(EMG.chanlocs),...
+            sets.artefact_threshold_trial,...
+            sets.artefact_threshold_trial,...
+            0, 0, 0, [], 0);
+
+        % Combine flags ----
+
+        % Assign to original EMG struct the index of trials flagged by at least one method
+        EMG.reject.rejjp = EMG_baseline.reject.rejjp | EMG_trial.reject.rejjp;
+
+        % Remove temporary structs
+        clearvars EMG_baseline EMG_trial
+
+        fprintf('\nAutomatic artefact detection COMPLETE\n\n');
+
+    end
+
+    % Check if manual artefact detection is on
+    if sets.do_artefact_detection_manual
+        
+        % Assign data to EEG struct cause 'pop_rejmenu' will work only on it
+        EEG = EMG;
+        
+        % Open GUI for manual artefact rejection.
+        % Stop further code execution till GUI is closed.
+        
+        % --- HOW TO USE GUI ---
+        % - Don't care about values set in all the menu boxes, they won't be applied
+        % - Click on "Scoll Data" on top, this will open a new window
+        % - In the new window trials automatically flagged are colored (probably in red-pink)
+        % - Click on a flagged trial to unflag it. Click on an unflagged trial to flag it
+        % - When finished:
+        %    - If AT LEAST ONE CHANGE WAS MADE:
+        %       - Click on " Update Marks"
+        %       - A warning window will appear. Click on "Ok"
+        %       - On the initial GUI, click on "Close (keep marks)"
+        %   - If NO CHANGES WERE MADE:
+        %       - Just close both windows by clicking on the X button
+
+        eeglab redraw  % update EEGLab menu
+        pop_rejmenu(EEG, 1);  % open main GUI
+        uiwait  % halt execution of remaining code until GUI is closed
+        close all
+        
+        % Assign modified EEG back to EMG struct
+        EMG = EEG;
+
+        fprintf('\nManual artefact detection COMPLETE\n\n');
+       
+    end
+
+    if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
+    
+        % Merge automatic and manual selections
+        EMG = eeg_rejsuperpose(EMG, 1, 1, 1, 1, 1, 1, 1, 1);
+        
+        % Count rejected trials ----
+        
+        n_rej_total = sum(EMG.reject.rejglobal);  % number of rejected trials across conditions
+        perc_rej_total = n_rej_total/length(EMG.epoch);  % percentage of rejected trials across conditions
+        
+        % Number and percentage of rejected trials within each condition
+        n_rej_cond = cell(1, length(sets.condition_names));  % preallocate cell to store number of rejected trials per condition
+        perc_rej_cond = cell(1, length(sets.condition_names));  % preallocate cell to store percentage of rejected trials per condition
+        
+        % Loop through conditions
+        for i = 1:length(sets.condition_names)
+            
+            % Number of rejected trials within one condition
+            n_rej_cond{1, i} = sum(...  % sum trials...
+                strcmp({EMG.event.type}, sets.condition_names{i}) & ...  % ...that belong to current condition...
+                EMG.reject.rejglobal);  % ...and are flagged
+            
+            % Percentage of rejected trials within one condition
+            perc_rej_cond{1, i} = n_rej_cond{1, i}/sum(strcmp({EMG.event.type}, sets.condition_names{i})); 
+        end
+        
+        % Store all info for this subject
+        reject_info(si, :) = [{subj_ID, n_rej_total}, n_rej_cond, {perc_rej_total}, perc_rej_cond]; 
+        
+        % Check if saving info is on
+        if sets.do_save_trial_rejection_info
+            
+            % Turn cell into table and assign column names
+            reject_info_table = cell2table(reject_info,...
+                'VariableNames',...
+                [{'subject_ID', 'n_rejected_total'},...
+                cellfun(@(x) ['n_rejected_', x], sets.condition_names, 'UniformOutput', false),...
+                {'perc_rejected_total'},...
+                cellfun(@(x) ['perc_rejected_', x], sets.condition_names, 'UniformOutput', false)]);
+            
+            % Save table
+            writetable(reject_info_table, [sets.processed_dir, sets.fname_trial_rejection_info]);
+            
+            fprintf('\nRejected trials info SAVED\n\n');
+            
+        end
+
+    end
+
+    %% 2.4.9 - Baseline correction
+    
+    % Check if baseline correction is on
+    if sets.do_baseline_correction
+        
+        % Get indexes of beginning and end of baseline time-window
+        baseline_start_idx = dsearchn(EMG.times', sets.baseline_correction_window(1));
+        baseline_end_idx = dsearchn(EMG.times', sets.baseline_correction_window(2));
+
+        % Average baseline within the specified time-window, per channel and trial
+        baseline_amplitudes = squeeze(...  % rows = channels, cols = trials
+            mean(...
+            EMG.data(:,...  % all channels
+            baseline_start_idx:baseline_end_idx,...  % specified time-window
+            :), ...  % all trials
+            2));  % average across time
+        
+        % Check baseline correction method
+        if strcmp(sets.baseline_correction_method, 'subtraction')
+
+            % Subtract mean baseline from each trial, for each channel separately
+            for tr = 1:size(EMG.data, 3)  % loop through trials
+                for ch = 1:size(EMG.data, 1)  % loop through channels
+                    EMG.data(ch, :, tr) = EMG.data(ch, :, tr) - baseline_amplitudes(ch, tr);
+                end
+            end
+
+        elseif strcmp(sets.baseline_correction_method, 'division')
+
+            % Divide each trial by mean baseline amplitude, for each channel separately
+            for tr = 1:size(EMG.data, 3)  % loop through trials
+                for ch = 1:size(EMG.data, 1)  % loop through channels
+                    EMG.data(ch, :, tr) = EMG.data(ch, :, tr) ./ baseline_amplitudes(ch, tr);
+                end
+            end
+            
+        end
+    
+    fprintf('\nBaseline correction (method %s) COMPLETE\n\n', sets.baseline_correction_method);
+
+    end
+
+    %% 2.4.10 - Save preprocessed datasets
+
+    % Next standardization steps require to work only on clean data. Therefore, here save the dataset as preprocessed so
+    % far as a checkpoint.
+    
+    % Check if saving data is on
+    if sets.do_save_preprocessed_data
+        
+        % Define new filename
+        new_fname = [EMG.subject, sets.fname_preprocessed_data];
+
+        % Set filename and path in EMG struct
+        EMG.setname = new_fname;
+        EMG.filename = [EMG.setname, '.set'];
+        EMG.filepath = sets.processed_dir;
+
+        % Save dataset as .set file
+        EMG = pop_saveset(EMG, 'filename', EMG.filename, 'filepath', EMG.filepath);
+        
+        fprintf('\nPreprocessed dataset SAVED\n\n');
+        
+    end
+
+    %% 2.4.11 - Remove flagged trials
+    % Remove trials flagged by artefact detection to ensure following standardization is done only on clean data
+    
+    if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
+        
+        % Save a copy of the original event list
+        events_pre_rejection = struct2table(EMG.event);
+
+        EMG = pop_rejepoch(EMG, EMG.reject.rejglobal, 0);
+    
+        fprintf('\nTrial rejection COMPLETE\n\n');
+    end
+    
+    %% 2.4.12 - Within-muscle standardization
+    % Calculate z-score over each muscle (channel) within a participant (across all trials)
+    
+    % Check if within-muscle standardization is on
+    if sets.do_standardization_muscle
+
+        % Calculate z-score for each channel separately
+        % (NOTE: '[2,3]' in the following ensures zscore is calculated across all time-points (2nd dimension)
+        % and trials (3rd dimension) for each channel (1st dimension) separately;
+        EMG.data = zscore(EMG.data, 0, [2,3]);
+        
+        fprintf('\nWithin-muscle standardization COMPLETE\n\n');
+        
+    end
+    
+    %% 2.4.13 - Within-subject standardization
+    % Calculate z-score over all muscles (channels) and trials within a participant
+
+    % Check if within-subject standardization is on
+    if sets.do_standardization_subject
+
+        % Calculate z-score across all channels and trials
+        % (NOTE: 'all' in the following ensures zscore is calculated across all dimensions)
+        EMG.data = zscore(EMG.data, 0, 'all');
+
+        fprintf('\nWithin-subject standardization COMPLETE\n\n');
+
+    end
+    
+    %% 2.4.14 - Feature extraction
+
+     if sets.feature_extraction_bin_dur > abs(EMG.times(1))
+        % Raise error if bin duration is longer than epoch baseline
+        error('Specified bin duration is longer than epoch baseline!');
+
+    end
+
+    % Calculate maximum number of bins
+    n_bins = sets.epoch_length(2)*1000/sets.feature_extraction_bin_dur + 1;
+
+    % Preallocate array to store feature amplitude at each bin and trial, for each channel separately
+    % Add 1 more bin for baseline
+    feature_amplitudes = nan(size(EMG.data, 3), length(EMG.chanlocs), n_bins);  % (trials X channels X bins)
+
+    % Calculate beginning of equally spaced bins in the epoch, in ms (also serving as end of respective previous bin)
+    % Also include left edge of baseline bin (from -feature_extraction_bin_dur to 0).
+    bin_edges = [-sets.feature_extraction_bin_dur, ...  % baseline bin
+        linspace(0, sets.epoch_length(2)*1000, n_bins)];  % epoch bins
+
+    % Loop through bins
+    for b = 1:sets.feature_extraction_bins
+
+        % Define start and end time for the bin
+        start_time = bin_edges(b);
+        end_time = bin_edges(b+1);
+        
+        % Find indices corresponding to the bin
+        start_idx = dsearchn(EMG.times', start_time);
+        end_idx = dsearchn(EMG.times', end_time);
+
+        % Check feature extraction method
+        if strcmp(sets.feature_extraction_method, 'mav')
+            % Extract mean absolute value of the bin from all trials
+            this_feature = mean(...
+                EMG.data(:,...  % all channels
+                start_idx:end_idx,...  % from beginning to end of the bin
+                :),...  % all trials
+                2);  % average across time
+        end
+
+        % Store in corresponding position for current bin:
+        feature_amplitudes(:, :, b) = squeeze(permute(this_feature, [3, 2, 1]));
+
+    end
+
+    fprintf('\nFeature extraction COMPLETE\n\n');
+    
+    %% 2.4.15 - Trial average and store participant data
+    
+    % Here conditions are defined as the ones actually present in the EMG struct, not the ones specified in the settings.
+    % This is to account for possible between-subject designs.
+    this_condition_names = unique({EMG.event.type});
+
+    % Preallocate cell arrays to store amplitudes, number of trials, bin number and condition name, per condition
+    data_out_amplitudes = cell(1, length(this_condition_names));
+    data_out_trials = cell(1, length(this_condition_names));
+    data_out_bins = cell(1, length(this_condition_names));
+    data_out_conditions = cell(1, length(this_condition_names));
+
+    % Loop through conditions
+    for cond = 1:length(this_condition_names)
+
+        % Get indexes of trials belonging to current condition
+        cond_idx = strcmp({EMG.event.type}, this_condition_names{cond});
+
+        % Check if trial averagin is on
+        if sets.do_trial_averaging
+
+            % Average trials belonging to current condition (separately for muscle and bin)
+            this_average = mean(feature_amplitudes(cond_idx, :, :), 1);
+            
+            % Concatenate bin data along rows and store data
+            data_out_amplitudes{1, cond} = permute(this_average, [3,2,1]);
+
+            % Store number of trials being averaged (repeated for number of bins)
+            data_out_trials{1, cond} = repmat(sum(cond_idx), sets.feature_extraction_bins, 1);
+
+            % Store bin number
+            data_out_bins{1, cond} = (1:sets.feature_extraction_bins)';
+
+            % Store condition name (repeated for number of bins)
+            data_out_conditions{1, cond} = repmat(this_condition_names(cond), sets.feature_extraction_bins, 1);
+
+        else
+            % If not averaging, get all trials belonging to current condition
+            this_condition = feature_amplitudes(cond_idx, :, :);
+            
+            % Reshape data concatenating first along bins and then along trials, and store it
+            % NOTE TO SELF: must understand better this passage
+            data_out_amplitudes{1, cond} = reshape(permute(this_condition, [3, 1, 2]), ...
+                [size(this_condition,1)*size(this_condition,3), size(this_condition, 2)]);
+
+            % Store original trial numbers for current condition (each repeated for number of bins)
+            data_out_trials{1, cond} = repelem([EMG.event(cond_idx).trial_number]', sets.feature_extraction_bins, 1);
+
+            % Store bin number, repeated for each trial
+            data_out_bins{1, cond} = repmat((1:sets.feature_extraction_bins)', sum(cond_idx), 1);
+
+            % Store condition names, repeated for each trial and bin
+            data_out_conditions{1, cond} = repmat(this_condition_names(cond), sets.feature_extraction_bins*sum(cond_idx), 1);
+
+        end
+
+    end
+   
+    % Concatenate data from all condition across rows and store it in output cell array
+    out_features{si, 2} = cat(1, data_out_conditions{:});  % conditions
+    out_features{si, 3} = cat(1, data_out_trials{:});  % trial number
+    out_features{si, 4} = cat(1, data_out_bins{:});  % bin numbers
+    out_features(si, 5:end) = num2cell(cat(1, data_out_amplitudes{:}), 1);  % feature amplitudes (per channel)
+
+    % Store subject (for same number of rows as previous data)
+    out_features{si, 1} =  repmat({subj_ID}, length(out_features{si, 2}), 1);
+    
+    % Concatenate values across participants in each column
+    out_features_table = cell(1, size(out_features, 2));
+    for i = 1:size(out_features, 2)
+        out_features_table{1, i} = cat(1, out_features{:, i});
+    end
+
+    % Turn output data into a table and assign variable names
+    out_features_table = table(out_features_table{:});
+    out_features_table.Properties.VariableNames = [{'subject_ID', 'condition', 'trial_number', 'bin'}, sets.emg_channel_names];
+
+    % Include rejected trials if specified
+    if sets.do_save_rejected_trials_info
+        
+        if sets.do_trial_averaging
+            % Raise error if trial averaging is enabled
+            error('Cannot retain rejected trial info if trial averaging is enabled!');
+        end
+
+        % Get all bins present in current feature table
+        bins = unique(out_features_table.bin, 'stable');
+        n_bins = length(bins);  % was already defined, but just to be safe
+
+        % Create complete trial X bin skeleton from EMG struct BEFORE trial rejection
+        prerej_trial_table = events_pre_rejection(:, {'type', 'trial_number'});
+
+        % Rename 'type' to match 'out_features_table' column
+        prerej_trial_table.Properties.VariableNames{'type'} = 'condition';
+
+        % Make sure condition has the same datatype
+        prerej_trial_table.condition = string(prerej_trial_table.condition);
+        out_features_table.condition = string(out_features_table.condition);
+
+        % Repeat every trial once for each bin
+        full_trial_table = prerej_trial_table(repelem((1:height(prerej_trial_table))', n_bins), :);
+
+        % Add bin number
+        full_trial_table.bin = repmat(bins, height(prerej_trial_table), 1);
+
+        % Merge trials after rejection onto complete skeleton
+        out_features_table_full = outerjoin(...
+            full_trial_table, ...
+            out_features_table, ...
+            "Keys", {'condition', 'trial_number', 'bin'}, ...
+            "MergeKeys", true, ...
+            "Type", 'left');
+
+        % Assign subject ID also to missing trials
+        out_features_table_full.subject_ID = repmat(subj_ID, height(out_features_table_full), 1);
+
+        % Sort rows according to initial list of conditions
+        condition_order = unique(out_features_table.condition, 'stable');
+
+        out_features_table_full.condition = categorical( ...
+            out_features_table_full.condition, ...
+            condition_order, ...
+            'Ordinal', true);
+        
+        out_features_table_full = sortrows(out_features_table_full, ...
+            {'condition', 'trial_number', 'bin'});
+
+        out_features_table_full.condition = string(out_features_table_full.condition);
+
+        % Reorder columns
+        out_features_table_full = out_features_table_full(:, out_features_table.Properties.VariableNames);
+
+    end
+
+    % Send confirmation message
+    if sets.do_trial_averaging
+        fprintf('\nTrial averaging COMPLETE\n\n');
+    end
+
+    fprintf('\nStoring extracted features COMPLETE\n\n')
+    
+    %% 2.4.16 - Save feature data to file
+    
+    % Check if saving features is on
+    if sets.do_save_features_amplitudes
+
+        % Save only clean trials or also rejected ones as depending on settings
+        if sets.do_save_rejected_trials_info
+            writetable(out_features_table_full, [sets.amplitudes_dir, sets.fname_feature_amplitudes]);
+        else
+            writetable(out_features_table, [sets.amplitudes_dir, sets.fname_feature_amplitudes]);
+        end
+
+        fprintf('\nFeature amplitudes SAVED\n\n');
+        
+    end
+
+end
