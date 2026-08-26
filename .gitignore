@@ -22,5 +22,12 @@ output/
 outputs/
 results/
 
+# Pipeline-generated data and output directories
+raw/
+preprocessed/
+extracted_amplitudes/
+
 # Machine-specific local configuration
 EMG_00_settings_local.m
+resources/preprocessing_settings.mat
+resources/preprocessing_settings.txt

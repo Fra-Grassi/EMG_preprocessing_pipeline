@@ -50,7 +50,9 @@
 clearvars
 
 % Load preprocessing parameters
-load('resources\preprocessing_settings.mat');
+project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
+settings_file = fullfile(project_dir, 'resources', 'preprocessing_settings.mat');
+load(settings_file, 'sets');
 
 addpath(sets.eeglab_dir)  % EEGLab
 
@@ -59,9 +61,9 @@ eeglab; close all;  % start EEGLab and close popup windows
 %% 2.2 - Select input data
 
 % Select one or multiple raw SET datasets to process
-% (datasets created in 'p01_raw2set_fix_triggers_split_dyads.m')
+% (datasets created in 'EMG_01_raw2set_shift_triggers.m')
 
-[file, thissubjectpath] = uigetfile(sprintf('%s*_raw.set', sets.rawSET_participants_dir), 'MultiSelect', 'on');  % show gui to select files
+[file, thissubjectpath] = uigetfile(fullfile(sets.rawSET_dir, '*_raw.set'), 'MultiSelect', 'on');  % show gui to select files
 
 % Ensure the file names are stored as a cell array even when only one file is selected
 if ischar(file)
@@ -70,14 +72,9 @@ end
 
 %% 2.3 - Prepare output variables
 
-% Preallocate cell array to store feature amplitudes.
-% Array has one row per participant, with columns for:
-% - Subject ID
-% - Condition
-% - Trial number (if averaging: number of averaged trials; if not averaging, original trial number before artefact rejection)
-% - Bin
-% - One column with feature amplitudes per channel
-out_features = cell(length(file), length(sets.emg_channel_names) + 4);
+% Preallocate one table per participant. Each table is stored only after the
+% participant has completed preprocessing and feature-table validation.
+participant_feature_tables = cell(length(file), 1);
 
 % If performing artefact detection, preallocate a cell array to store info on rejected trials.
 % Array has one row per participant, with colums for:
@@ -99,7 +96,7 @@ for si = 1:length(file)
     
     %% 2.4.1 - Load dataset
     
-    EMG = pop_loadset('filename', file{si}, 'filepath', sets.rawSET_participants_dir);
+    EMG = pop_loadset('filename', file{si}, 'filepath', sets.rawSET_dir);
     EMG_bkp = EMG;  % temporary for debugging
     
     fprintf('\nDataset loading COMPLETE\n\n');
@@ -268,7 +265,7 @@ for si = 1:length(file)
         % Automatic artefact detection on trial ----
 
         % Epoch data to only include trial
-        EMG_trial = pop_epoch(EMG, sets.condition_names, [0, epoch_length(2)], 'epochinfo', 'yes');
+        EMG_trial = pop_epoch(EMG, sets.condition_names, [0, sets.epoch_length(2)], 'epochinfo', 'yes');
 
         % Detect artefacts in trial
         EMG_trial = pop_jointprob(EMG_trial, 1, 1:length(EMG.chanlocs),...
@@ -352,7 +349,7 @@ for si = 1:length(file)
         reject_info(si, :) = [{subj_ID, n_rej_total}, n_rej_cond, {perc_rej_total}, perc_rej_cond]; 
         
         % Check if saving info is on
-        if sets.do_save_trial_rejection_info
+        if sets.do_save_trial_rejection_stats
             
             % Turn cell into table and assign column names
             reject_info_table = cell2table(reject_info,...
@@ -363,7 +360,7 @@ for si = 1:length(file)
                 cellfun(@(x) ['perc_rejected_', x], sets.condition_names, 'UniformOutput', false)]);
             
             % Save table
-            writetable(reject_info_table, [sets.processed_dir, sets.fname_trial_rejection_info]);
+            writetable(reject_info_table, fullfile(sets.processed_dir, sets.fname_trial_rejection_stats));
             
             fprintf('\nRejected trials info SAVED\n\n');
             
@@ -499,7 +496,7 @@ for si = 1:length(file)
         linspace(0, sets.epoch_length(2)*1000, n_bins)];  % epoch bins
 
     % Loop through bins
-    for b = 1:sets.feature_extraction_bins
+    for b = 1:n_bins
 
         % Define start and end time for the bin
         start_time = bin_edges(b);
@@ -554,13 +551,13 @@ for si = 1:length(file)
             data_out_amplitudes{1, cond} = permute(this_average, [3,2,1]);
 
             % Store number of trials being averaged (repeated for number of bins)
-            data_out_trials{1, cond} = repmat(sum(cond_idx), sets.feature_extraction_bins, 1);
+            data_out_trials{1, cond} = repmat(sum(cond_idx), n_bins, 1);
 
             % Store bin number
-            data_out_bins{1, cond} = (1:sets.feature_extraction_bins)';
+            data_out_bins{1, cond} = (1:n_bins)';
 
             % Store condition name (repeated for number of bins)
-            data_out_conditions{1, cond} = repmat(this_condition_names(cond), sets.feature_extraction_bins, 1);
+            data_out_conditions{1, cond} = repmat(this_condition_names(cond), n_bins, 1);
 
         else
             % If not averaging, get all trials belonging to current condition
@@ -572,58 +569,60 @@ for si = 1:length(file)
                 [size(this_condition,1)*size(this_condition,3), size(this_condition, 2)]);
 
             % Store original trial numbers for current condition (each repeated for number of bins)
-            data_out_trials{1, cond} = repelem([EMG.event(cond_idx).trial_number]', sets.feature_extraction_bins, 1);
+            data_out_trials{1, cond} = repelem([EMG.event(cond_idx).trial_number]', n_bins, 1);
 
             % Store bin number, repeated for each trial
-            data_out_bins{1, cond} = repmat((1:sets.feature_extraction_bins)', sum(cond_idx), 1);
+            data_out_bins{1, cond} = repmat((1:n_bins)', sum(cond_idx), 1);
 
             % Store condition names, repeated for each trial and bin
-            data_out_conditions{1, cond} = repmat(this_condition_names(cond), sets.feature_extraction_bins*sum(cond_idx), 1);
+            data_out_conditions{1, cond} = repmat(this_condition_names(cond), n_bins*sum(cond_idx), 1);
 
         end
 
     end
    
-    % Concatenate data from all condition across rows and store it in output cell array
-    out_features{si, 2} = cat(1, data_out_conditions{:});  % conditions
-    out_features{si, 3} = cat(1, data_out_trials{:});  % trial number
-    out_features{si, 4} = cat(1, data_out_bins{:});  % bin numbers
-    out_features(si, 5:end) = num2cell(cat(1, data_out_amplitudes{:}), 1);  % feature amplitudes (per channel)
-
-    % Store subject (for same number of rows as previous data)
-    out_features{si, 1} =  repmat({subj_ID}, length(out_features{si, 2}), 1);
-    
-    % Concatenate values across participants in each column
-    out_features_table = cell(1, size(out_features, 2));
-    for i = 1:size(out_features, 2)
-        out_features_table{1, i} = cat(1, out_features{:, i});
+    % Build a feature table containing only the current participant
+    if isempty(data_out_conditions)
+        % Preserve a valid table schema when all trials were rejected
+        participant_conditions = strings(0, 1);
+        participant_trials = zeros(0, 1);
+        participant_bins = zeros(0, 1);
+        participant_amplitudes = zeros(0, length(sets.emg_channel_names));
+    else
+        participant_conditions = string(cat(1, data_out_conditions{:}));
+        participant_trials = cat(1, data_out_trials{:});
+        participant_bins = cat(1, data_out_bins{:});
+        participant_amplitudes = cat(1, data_out_amplitudes{:});
     end
 
-    % Turn output data into a table and assign variable names
-    out_features_table = table(out_features_table{:});
-    out_features_table.Properties.VariableNames = [{'subject_ID', 'condition', 'trial_number', 'bin'}, sets.emg_channel_names];
+    participant_features_table = table(...
+        repmat(string(subj_ID), length(participant_conditions), 1), ...
+        participant_conditions, ...
+        participant_trials, ...
+        participant_bins, ...
+        'VariableNames', {'subject_ID', 'condition', 'trial_number', 'bin'});
+
+    % Add one numeric feature column per EMG channel
+    for ch = 1:length(sets.emg_channel_names)
+        participant_features_table.(sets.emg_channel_names{ch}) = participant_amplitudes(:, ch);
+    end
+
+    feature_variable_names = participant_features_table.Properties.VariableNames;
 
     % Include rejected trials if specified
-    if sets.do_save_rejected_trials_info
+    if sets.do_save_rejected_trial_rows
         
-        if sets.do_trial_averaging
-            % Raise error if trial averaging is enabled
-            error('Cannot retain rejected trial info if trial averaging is enabled!');
-        end
-
-        % Get all bins present in current feature table
-        bins = unique(out_features_table.bin, 'stable');
-        n_bins = length(bins);  % was already defined, but just to be safe
+        % Define all expected bins independently of how many clean trials remain
+        bins = (1:n_bins)';
 
         % Create complete trial X bin skeleton from EMG struct BEFORE trial rejection
         prerej_trial_table = events_pre_rejection(:, {'type', 'trial_number'});
 
-        % Rename 'type' to match 'out_features_table' column
+        % Rename 'type' to match the participant feature table
         prerej_trial_table.Properties.VariableNames{'type'} = 'condition';
 
         % Make sure condition has the same datatype
         prerej_trial_table.condition = string(prerej_trial_table.condition);
-        out_features_table.condition = string(out_features_table.condition);
 
         % Repeat every trial once for each bin
         full_trial_table = prerej_trial_table(repelem((1:height(prerej_trial_table))', n_bins), :);
@@ -631,34 +630,40 @@ for si = 1:length(file)
         % Add bin number
         full_trial_table.bin = repmat(bins, height(prerej_trial_table), 1);
 
-        % Merge trials after rejection onto complete skeleton
-        out_features_table_full = outerjoin(...
+        % Add subject ID
+        full_trial_table.subject_ID = repmat(string(subj_ID), height(full_trial_table), 1);
+
+        % Merge clean trials onto the complete pre-rejection skeleton
+        participant_features_table_full = outerjoin(...
             full_trial_table, ...
-            out_features_table, ...
-            "Keys", {'condition', 'trial_number', 'bin'}, ...
+            participant_features_table, ...
+            "Keys", {'subject_ID', 'condition', 'trial_number', 'bin'}, ...
             "MergeKeys", true, ...
             "Type", 'left');
 
-        % Assign subject ID also to missing trials
-        out_features_table_full.subject_ID = repmat(subj_ID, height(out_features_table_full), 1);
-
-        % Sort rows according to initial list of conditions
-        condition_order = unique(out_features_table.condition, 'stable');
-
-        out_features_table_full.condition = categorical( ...
-            out_features_table_full.condition, ...
-            condition_order, ...
-            'Ordinal', true);
-        
-        out_features_table_full = sortrows(out_features_table_full, ...
-            {'condition', 'trial_number', 'bin'});
-
-        out_features_table_full.condition = string(out_features_table_full.condition);
-
         % Reorder columns
-        out_features_table_full = out_features_table_full(:, out_features_table.Properties.VariableNames);
+        participant_features_table = participant_features_table_full(:, ...
+            feature_variable_names);
 
     end
+
+    % Store the current participant only after table construction completes
+    participant_feature_tables{si} = participant_features_table;
+
+    % Concatenate all participants completed so far
+    checkpoint_features_table = vertcat(participant_feature_tables{1:si});
+
+    % Preserve the configured condition order, including between-subject designs
+    condition_order = string(sets.condition_names);
+    checkpoint_features_table.condition = categorical(...
+        checkpoint_features_table.condition, ...
+        condition_order, ...
+        cellstr(condition_order), ...
+        'Ordinal', true);
+
+    checkpoint_features_table = sortrows(checkpoint_features_table, ...
+        {'subject_ID', 'condition', 'trial_number', 'bin'});
+    checkpoint_features_table.condition = string(checkpoint_features_table.condition);
 
     % Send confirmation message
     if sets.do_trial_averaging
@@ -672,14 +677,11 @@ for si = 1:length(file)
     % Check if saving features is on
     if sets.do_save_features_amplitudes
 
-        % Save only clean trials or also rejected ones as depending on settings
-        if sets.do_save_rejected_trials_info
-            writetable(out_features_table_full, [sets.amplitudes_dir, sets.fname_feature_amplitudes]);
-        else
-            writetable(out_features_table, [sets.amplitudes_dir, sets.fname_feature_amplitudes]);
-        end
+        % Save all participants completed so far as a recovery checkpoint
+        feature_output_path = fullfile(sets.amplitudes_dir, sets.fname_feature_amplitudes);
+        writetable(checkpoint_features_table, feature_output_path);
 
-        fprintf('\nFeature amplitudes SAVED\n\n');
+        fprintf('\nFeature amplitudes SAVED for %d completed participant(s)\n\n', si);
         
     end
 

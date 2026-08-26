@@ -23,9 +23,10 @@
 %   9. Trial averaging
 %
 % Usage:
-% 1. Toggle processing steps (1 = perform, 0 = skip).
-% 2. Specify processing steps parameters.
-% 3. Run script to save parameters as MATLAB struct.
+% 1. Do not modify Section 0.1 unless different output directory names are required
+% 2. Toggle processing steps in Section 0.2 (1 = perform, 0 = skip).
+% 3. Specify processing steps parameters in Section 0.2.
+% 4. Run script to save parameters as MATLAB struct.
 %
 % Output:
 % - A MATLAB struct 'preprocessing_settings.mat' to be used in following.
@@ -37,24 +38,44 @@
 % - EEGLab Toolbox
 % - Custom function 'writeSetsToTxt()'
 %
-%% 0.1 - Parameters
+%% 0.1 - Setup project folders
 
 clearvars
+
+% ---- Data Folders ----
+% The project folder is inferred from the active script in the MATLAB Editor.
+% Project-internal paths are then defined relative to that folder.
+sets.project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
+
+sets.rawSET_dir = fullfile(sets.project_dir, 'raw');  % path to raw SET data folder
+sets.processed_dir = fullfile(sets.project_dir, 'preprocessed');  % path to processed data folder
+sets.amplitudes_dir = fullfile(sets.project_dir, 'extracted_amplitudes');  % path to extracted feature amplitudes
+sets.utilities_dir = fullfile(sets.project_dir, 'resources');  % path to utilities folder (electrode location, etc)
+
+% Create output folders only when they do not already exist.
+% Existing folders and their contents are never removed or replaced here.
+output_dirs = {sets.rawSET_dir, sets.processed_dir, sets.amplitudes_dir};
+for dir_idx = 1:length(output_dirs)
+    if ~isfolder(output_dirs{dir_idx})
+        mkdir(output_dirs{dir_idx});
+    end
+end
+
+%% 0.2 - Parameters
 
 % ---- Study Name ----
 % Specify study name as string (e.g., 'my_fancy_study');
 sets.study_name = 'hyper_lol_2';
 
-% ---- Data Folders ----
-% Specify full paths as strings.
-% Example: input_dir = 'C:\Data\Raw\';
+% ---- External folder paths ----
+% Specify the external paths to the raw BDF data and EEGLab as strings.
 sets.rawBDF_dir = 'N:\ANAP\01_data\HyperLOL2\Raw Data\EMG\merged\';  % path to raw BDF data folder
-sets.rawSET_dyad_dir = 'N:\ANAP\01_data\HyperLOL2\preprocessing\raw_dyads\';  % path to raw SET data folder for dyads
-sets.rawSET_participants_dir = 'N:\ANAP\01_data\HyperLOL2\preprocessing\raw_participants\';  % path to raw SET data folder for individual participants
-sets.processed_dir = 'N:\ANAP\01_data\HyperLOL2\preprocessing\preprocessed\';  % path to processed data folder
-sets.amplitudes_dir = 'N:\ANAP\01_data\HyperLOL2\preprocessing\extracted_amplitudes\';  % path to extracted feature amplitudes
-sets.utilities_dir = 'N:\ANAP\01_data\HyperLOL2\preprocessing\resources\';  % path to utilities folder (electrode location, etc)
 sets.eeglab_dir = 'N:\ANAP\02_home\Francesco\Matlab plugins\eeglab2025.1.0\';  % path to EEGLab toolbox 
+
+% The resources folder must already exist because it contains required files.
+if ~isfolder(sets.utilities_dir)
+    error('Resources folder not found: %s', sets.utilities_dir);
+end
 
 % ---- Channel layout ----
 % String defining the channel layout used during the recording.
@@ -141,7 +162,7 @@ sets.filter_cutoff_main = 20;
 
 % Notch filter
 % Apply a notch filter at specific frequency
-sets.do_filtering_notch = 1;
+sets.do_filtering_notch = 0;
 
 % Specify notch filter cutoff in Hz as single numeric value (e.g., 50).
 sets.filter_cutoff_notch = 50;
@@ -170,13 +191,13 @@ sets.epoch_length = [-3 5];
 % ---- Artifact detection and rejection ----
 
 % Perform automatic artefact detection with specified thresholds.
-sets.do_artefact_detection_automatic = 0;
+sets.do_artefact_detection_automatic = 1;
 
 % Specify detection thresholds as single numerical value in Standard Deviation
 % above/below which a signal is considered artefact (e.g., 2).
 % Different thresholds are specified for baseline and post-stimulus time-windows.
-sets.artefact_threshold_baseline = [];    % baseline
-sets.artefact_threshold_trial = [];       % post-stimulus
+sets.artefact_threshold_baseline = 3;    % baseline
+sets.artefact_threshold_trial = 3;       % post-stimulus
 
 % Perform manual artefact detection
 sets.do_artefact_detection_manual = 0;
@@ -225,16 +246,16 @@ sets.do_trial_averaging = 0;
 % IMPORTANT! Existing files with the same name as defined below will be overwritten!
 
 % Specify name suffix for raw SET files as string.
-% Final name will be made of participant/dyad ID and suffix.
-% E.g., if set to '_raw', SET files will be named 'd-01_raw.set' (for dyads) or 'd-01_s-02_raw.set (for participants).
+% Final name will be made of participant and suffix.
+% E.g., if set to '_raw', SET files will be named 's-01_raw.set'.
 sets.fname_raw_data = '_raw';
 
 % Trial rejection info
 % Specify whether to save table with number and percentage of rejected trials.
-sets.do_save_trial_rejection_info = 1;
+sets.do_save_trial_rejection_stats = 1;
 
 % Specify file name for trial rejection info as string, with extension (e.g., 'rejected-trials.csv').
-sets.fname_trial_rejection_info = 'rejected-trials-info.csv';
+sets.fname_trial_rejection_stats = 'rejected-trials-info.csv';
 
 % Preprocessed data
 % Specify whether to save EMG struct after all preprocessing steps, including flagged trials, and trial number.
@@ -251,16 +272,29 @@ sets.do_save_features_amplitudes = 1;
 
 % Keep rejected trial indexes
 % Specify whether to also include rejected trials as empty rows in the output feature amplitudes table
-% NOTE: this option is only available if trial averaging is DISABLED!
-sets.do_save_rejected_trials_info = 1;
+% NOTE: this option is only available if trial averaging is DISABLED and at least one rejection method is enabled!
+sets.do_save_rejected_trial_rows = 1;
 
 % Specify file name for feature amplitudes, as string, with extension (e.g., 'feature-amplitudes.csv').
 sets.fname_feature_amplitudes = 'feature-amplitudes.csv';
 
-%% 0.2 - Save settings
+%% 0.2 - Check invalid setting combinations
+
+% Raise error if rejected trial info saving is requested while trial averaging is enabled
+if sets.do_save_rejected_trial_rows && sets.do_trial_averaging
+    error('Cannot retain rejected trial info if trial averaging is enabled!');
+end
+
+% Raise error if rejected trial info saving is requested but no artefact rejection method is enabled
+if sets.do_save_rejected_trial_rows && ~(sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual)
+    error('Cannot retain rejected trial info if no artefact rejection is performed!')
+end
+
+
+%% 0.3 - Save settings
 
 % Save 'sets' in utilities folder:
-save([sets.utilities_dir, 'preprocessing_settings.mat'], 'sets');
+save(fullfile(sets.utilities_dir, 'preprocessing_settings.mat'), 'sets');
 
 % Save a copy of the parameters to TXT file:
-writeSetsToTxt(sets, [sets.utilities_dir, 'preprocessing_settings.txt']);
+writeSetsToTxt(sets, fullfile(sets.utilities_dir, 'preprocessing_settings.txt'));

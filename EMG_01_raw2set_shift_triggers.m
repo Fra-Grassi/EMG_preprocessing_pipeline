@@ -9,7 +9,7 @@
 %
 % ---------------------------------------------------------------------------------------------------------------------
 %
-% ++++ EMG_01_raw2set_fix_triggers ++++
+% ++++ EMG_01_raw2set_shift_triggers ++++
 %
 % This script converts raw data files from the format used by EEG/EMG acquisition systems
 % to the SET format (compatible with EEGLab). 
@@ -44,7 +44,9 @@
 clearvars
 
 % Load preprocessing parameters
-load('resources\preprocessing_settings.mat');
+project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
+settings_file = fullfile(project_dir, 'resources', 'preprocessing_settings.mat');
+load(settings_file, 'sets');
 
 addpath(sets.eeglab_dir)  % EEGLab
 
@@ -53,7 +55,7 @@ eeglab; close all;  % start EEGLab and close popup windows
 %% 1.2 - Select raw files
 
 % Show gui to select files based on specified format
-[file, thissubjectpath] = uigetfile(sprintf('%s*.bdf', sets.rawBDF_dir), 'MultiSelect', 'on');
+[file, thissubjectpath] = uigetfile(fullfile(sets.rawBDF_dir, '*.bdf'), 'MultiSelect', 'on');
 
 % Ensure the file names are stored as a cell array even when only one file is selected
 if ischar(file)
@@ -71,7 +73,7 @@ for si = 1:length(file)
     % to read the trigger input as an additional channel
     % This is then removed after removing the hyperscanning input
 
-    EMG = pop_readbdf([sets.rawBDF_dir, file{si}]);
+    EMG = pop_readbdf(fullfile(sets.rawBDF_dir, file{si}));
 
     EMG_bkp = EMG;  % temporary, for debugging
     
@@ -92,9 +94,9 @@ for si = 1:length(file)
     if strcmp(sets.recording_layout, 'EMG')
     % No need for channel location info if EMG only 
     elseif strcmp(sets.recording_layout, 'EEG_64')
-        EMG = pop_chanedit(EMG, 'lookup', [sets.utilities_dir. 'chanloc_biosemi_64.elp']);
+        EMG = pop_chanedit(EMG, 'lookup', fullfile(sets.utilities_dir, 'chanloc_biosemi_64.elp'));
     elseif strcmp(sets.recording_layout, 'EEG_128')
-        EMG = pop_chanedit(EMG, 'lookup', [sets.utilities_dir. 'chanloc_biosemi_128.ced']);
+        EMG = pop_chanedit(EMG, 'lookup', fullfile(sets.utilities_dir, 'chanloc_biosemi_128.ced'));
     else
         % Raise an error if the value is not valid
         error('Invalid value for the recording layout. It must be ''EMG'', ''EEG_64'', or ''EEG_128''.');
@@ -105,23 +107,23 @@ for si = 1:length(file)
     % Check if trigger shift is on
     if sets.do_shift_triggers
         EMG = shift_triggers(EMG, ...
-            sets.epoch_trigger, ...
-            sets.trigger_shift, ...
-            sets.epoch_window, ...
-            sets.signal_threshold);
+            sets.shift_markers, ...
+            sets.shift_method, ...
+            sets.shift_window, ...
+            sets.shift_threshold);
     end
     
     pause(5); close all
     
-    %% 1.3.5 - Add file info for the entire dyad
+    %% 1.3.5 - Add file info
     
     % Extract subject number from file name
     sub_id = erase(file{si}, '_raw.bdf');
 
-    EMG.subject = subj_id;
+    EMG.subject = sub_id;
     EMG.setname = [sub_id, sets.fname_raw_data];
     EMG.filename = [EMG.setname, '.set'];
-    EMG.filepath = sets.rawSET_dyad_dir;
+    EMG.filepath = sets.rawSET_dir;
     
     %% 1.3.6 - Save SET file
     
