@@ -89,11 +89,13 @@ These are the recommended next tasks. They refine existing behavior rather than 
 
 ### 1.1 Normalize event types and condition matching
 
-- [ ] Define one canonical representation for experimental trigger types after import.
-- [ ] Reconcile `fix_EEG_markers` documentation with its current behavior: numeric strings are presently retained as strings rather than converted to numeric values.
-- [ ] Replace mixed numeric/character comparisons in Stage 2 with scalar-safe matching.
-- [ ] Verify that exactly the intended condition event is created for each trigger and that repeated execution cannot create ambiguous duplicates.
-- [ ] Add deterministic tests for numeric, numeric-string, Brain Vision-style, and purely textual markers.
+- [x] Define the event representation contract in CD-11.
+- [ ] Convert every event type to a MATLAB character vector without altering its encoded content: numeric values use their character representation, strings convert to characters, and existing character values remain unchanged.
+- [ ] Remove the current Brain Vision prefix/spacing conversion and the original-value audit field logic.
+- [ ] Require condition triggers in Stage 0 to be entered as character vectors and explain that event types are converted to characters for EEGLAB compatibility.
+- [ ] Replace Stage 2's mixed numeric/character comparison with `strcmp` while preserving the existing condition-event copying logic.
+- [ ] Add focused deterministic tests for numeric, character, string, Brain Vision-style, and textual marker conversion.
+- [x] Retain the general Stage 2 section-execution contract: each section is run once, so Section 2.4.2 receives no special duplicate-execution guard (CD-12).
 
 Likely files: `fix_EEG_markers.m`, Stage 1, Stage 2, new tests.
 Dependency note: complete before a broad trigger-shifting refactor.
@@ -145,23 +147,28 @@ Scientific decision: artifact thresholds and acceptable rejection rates belong t
 
 ## Delegation map for Tier 1.1 and 1.2
 
-The event and trigger-shifting work should be delegated in two waves. Wave A establishes independently testable behavior without concurrent edits to the main scripts. Wave B integrates the validated pieces into separate production files. This mirrors the successful MAV workflow and avoids permanent helper proliferation before the behavior is trusted.
+The event and trigger-shifting work should be delegated in two waves. Wave A uses non-overlapping file ownership: the two event tasks implement the approved character contract, while trigger-shifting tasks remain isolated in new test/reference files. Wave B integrates only the validated trigger-shifting work into production. This avoids permanent helper proliferation before that behavior is trusted.
 
 No worker in Wave A should edit a shared test runner. Each worker supplies a directly runnable MATLAB test file; Agent 0 adds or updates the unified runner during integration.
 
 ### Pre-delegation gates owned by Agent 0
 
-#### Gate E: event representation contract
+#### Gate E: event representation contract — approved as CD-11
 
-Before launching implementation tasks, Agent 0 must record one approved event contract. The recommended contract is:
+The approved contract is:
 
-- experimental numeric triggers are represented canonically as character vectors containing their decimal integer code;
-- numeric scalars, numeric character vectors, scalar strings, and supported Brain Vision markers normalize to the same code;
-- purely textual markers remain textual;
-- normalization is idempotent and preserves the original type whenever a value changes;
-- trigger matching never relies on element-wise `==` between unlike types.
+- every `EEG.event.type` value is converted to a MATLAB character vector;
+- numeric `121` becomes `'121'`;
+- character `'121'` remains `'121'`;
+- string `"121"` becomes `'121'`;
+- Brain Vision marker `'S 121'` remains `'S 121'`;
+- Brain Vision marker `'S121'` remains `'S121'`;
+- no prefix, spacing, leading-zero, or other encoded content is removed from an existing character or string value;
+- no audit field is added;
+- users enter configured trigger codes as character vectors in Stage 0;
+- matching uses character comparison rather than mixed-type element-wise equality.
 
-This is an engineering representation choice, not a change to trigger meaning. The researcher should nevertheless approve it before implementation because it affects stored SET event fields.
+The representation changes only MATLAB type, not the experimenter's encoded trigger value or its meaning.
 
 #### Gate S: trigger-shift scientific contract
 
@@ -180,19 +187,19 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.1-A: canonical marker normalization
 
-- **Objective:** Make `fix_EEG_markers` implement Gate E consistently, preserve an auditable original marker for changed values, and make a second call a no-op.
+- **Objective:** Make `fix_EEG_markers` implement CD-11 by converting numeric and string event types to character vectors while leaving existing character content exactly unchanged.
 - **Relevant files/modules:** `fix_EEG_markers.m`; new `tests/test_event_marker_normalization.m`.
-- **Dependencies:** Gate E must be approved. No dependency on another implementation task.
+- **Dependencies:** CD-11. No dependency on another implementation task.
 - **Likely conflicts:** Any task editing `fix_EEG_markers.m`; the later trigger-shift integration consumes this contract but should not edit this file concurrently.
-- **Validation criteria:** Deterministic tests cover numeric scalars, numeric character vectors, scalar strings, supported Brain Vision forms, textual markers, unsupported types, original-value preservation, warning behavior, and idempotence. The tests should not require EEGLAB where direct struct operations suffice.
+- **Validation criteria:** Deterministic tests confirm numeric-to-character and string-to-character conversion; existing numeric characters, Brain Vision markers, spacing, prefixes, leading zeros, and textual markers remain exactly unchanged; every resulting event type is a character vector. The tests should not require EEGLAB where direct struct operations suffice.
 
-#### Task T1.1-B: condition-event construction reference
+#### Task T1.1-B: adapt Stage 0 and Stage 2 to character triggers
 
-- **Objective:** Specify and test scalar-safe mapping from canonical trigger codes to condition names, including the rule that rerunning the operation must not add a duplicate condition event at the same latency.
-- **Relevant files/modules:** New test-only reference logic under `tests/helpers`; new `tests/test_condition_event_mapping.m`. Do not edit Stage 2 in Wave A.
-- **Dependencies:** Gate E and the existing one-to-one order of `sets.condition_triggers` and `sets.condition_names`. It does not depend on Task T1.1-A's code.
-- **Likely conflicts:** None in Wave A if it owns only its new test/reference files. Its behavior will later be inlined or integrated by Task T1.1-C.
-- **Validation criteria:** Numeric-equivalent inputs map to the correct condition; non-target events are unchanged; latency and other event metadata are copied; multiple configured conditions remain distinct; repeated execution is idempotent; malformed trigger/name mappings fail before partial mutation.
+- **Objective:** Change the configured condition triggers to character vectors, inform users of the character conversion, and replace only the Stage 2 comparison expression while retaining the existing nested loops and event-copying behavior.
+- **Relevant files/modules:** Trigger comments/value in `EMG_00_settings.m`; Section 2.4.2 in `EMG_02_preprocessing_feature_extraction.m`; a focused manual or deterministic test if it can exercise the production logic without adding a new helper.
+- **Dependencies:** CD-11 and the existing one-to-one order of `sets.condition_triggers` and `sets.condition_names`. It does not depend on Task T1.1-A's code because both agents work from the approved contract.
+- **Likely conflicts:** Tier 1.3 or other work editing Stage 0 or Stage 2. It does not conflict with Task T1.1-A.
+- **Validation criteria:** Stage 0 stores condition triggers as character vectors; a matching character trigger receives the correct condition label; a nonmatching event receives no label; the copied label event retains the source latency and metadata; no new helper, audit field, mapping validation, duplicate-execution guard, or unrelated edge-case handling is introduced.
 
 #### Task T1.2-A: photodiode onset-detection reference
 
@@ -206,38 +213,30 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 - **Objective:** Specify and test how scalar fixed delays and trial-specific delay vectors are applied, in order, only to matching events while producing an auditable before/after record.
 - **Relevant files/modules:** New test-only reference logic under `tests/helpers`; new `tests/test_trigger_latency_application.m`; read-only audit of fixed and variable branches in `shift_triggers.m`.
-- **Dependencies:** Gate E and the direction/rounding portions of Gate S. It is independent of photodiode detection because it accepts delays as inputs.
+- **Dependencies:** CD-11 and the direction/rounding portions of Gate S. It is independent of photodiode detection because it accepts delays as inputs.
 - **Likely conflicts:** None in Wave A if `shift_triggers.m` remains read-only. Task T1.2-C will later consume the validated reference.
-- **Validation criteria:** Positive, zero, and negative fixed delays follow the approved sample conversion; mixed target/non-target events are handled safely; numeric and canonical character triggers match equivalently; distinct per-trial delays are not reset to the first value; delay/event count mismatches error before mutation; non-target latencies and event order are unchanged; the audit output matches the applied changes.
+- **Validation criteria:** Positive, zero, and negative fixed delays follow the approved sample conversion; target and non-target character events are handled safely; distinct per-trial delays are not reset to the first value; delay/event count mismatches error before mutation; non-target latencies and event order are unchanged; the audit output matches the applied changes.
 
 ### Wave B: production integration tasks
-
-#### Task T1.1-C: integrate condition-event mapping
-
-- **Objective:** Replace Stage 2's mixed-type, element-wise event comparison with the validated Task T1.1-B behavior while keeping the production implementation concise.
-- **Relevant files/modules:** `EMG_02_preprocessing_feature_extraction.m`; `tests/test_condition_event_mapping.m`; output/integration tests as needed.
-- **Dependencies:** Tasks T1.1-A and T1.1-B must pass and be integrated or available as reviewed commits.
-- **Likely conflicts:** Tier 1.3, Tier 1.5, or any other task editing Stage 2. It can run in parallel with Task T1.2-C because they own different production files.
-- **Validation criteria:** Stage 2 accepts the supported imported marker forms, adds exactly one correct condition event per target trigger, remains safe when its condition-annotation section is rerun, passes the deterministic reference tests, and produces unchanged downstream output for an already canonical representative dataset.
 
 #### Task T1.2-C: integrate and validate trigger shifting
 
 - **Objective:** Refactor `shift_triggers.m` around the validated onset-detection and latency-application behavior, correct per-trial indexing, make failure modes explicit, and update Stage 1/settings documentation without changing unapproved scientific choices.
 - **Relevant files/modules:** `shift_triggers.m`, `EMG_01_raw2set_shift_triggers.m`, trigger-shift comments in `EMG_00_settings.m`, Tasks T1.2-A/B tests, and any final EEGLAB integration test instructions.
-- **Dependencies:** Task T1.1-A; Tasks T1.2-A and T1.2-B; all Gate S decisions. A representative photodiode dataset is needed for final EEGLAB validation.
-- **Likely conflicts:** Tier 1.3 or Tier 1.4 work touching Stage 0 or Stage 1. It should not run concurrently with those integrations. It does not conflict with Task T1.1-C if file ownership is respected.
+- **Dependencies:** Tasks T1.1-A and T1.1-B; Tasks T1.2-A and T1.2-B; all Gate S decisions. A representative photodiode dataset is needed for final EEGLAB validation.
+- **Likely conflicts:** Tier 1.3 or Tier 1.4 work touching Stage 0 or Stage 1. It should not run concurrently with those integrations.
 - **Validation criteria:** All reference tests pass; fixed shifting changes only selected events by the approved sample offset; variable mode maps distinct trial delays to the correct continuous events; missing photodiode channels, zero samples, crossings, and count mismatches fail according to policy; before/after evidence is inspectable; a MATLAB/EEGLAB run on representative data confirms the plots or diagnostics and resulting event latencies.
 
 ### Integration and concurrency schedule
 
 With four total agent slots, including Agent 0:
 
-1. Agent 0 resolves Gate E and starts the Gate S decision record.
+1. Agent 0 records approved CD-11 and CD-12 and starts the Gate S decision record.
 2. Run Tasks T1.1-A, T1.1-B, and T1.2-A concurrently in three worker slots.
 3. Run Task T1.2-B when a worker slot becomes free; it is logically parallel with all Wave A tasks.
 4. Agent 0 reviews and integrates Wave A without allowing workers to edit the shared runner or coordination documents.
-5. Run Tasks T1.1-C and T1.2-C concurrently after their dependencies are satisfied.
-6. Agent 0 adds a unified event/trigger test runner, coordinates user-run MATLAB/EEGLAB validation, updates the decision ledger, and integrates approved commits into `main`.
+5. Run Task T1.2-C after its dependencies and Gate S decisions are satisfied; no separate condition-mapping integration task is needed.
+6. Agent 0 adds a unified event/trigger test runner if warranted, coordinates user-run MATLAB/EEGLAB validation, updates the decision ledger, and integrates approved commits into `main`.
 
 ### Wiki knowledge-base task
 
@@ -245,7 +244,7 @@ Delegate wiki preparation to a documentation-only Wiki Curator agent. This is sa
 
 - **Objective:** Transform approved conceptual material into a navigable future-wiki outline and draft pages without inventing methods or decisions.
 - **Relevant files/modules:** Read-only access to `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, relevant MATLAB comments, and tests; new output only under a dedicated `wiki_drafts/` directory unless Agent 0 specifies another location.
-- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Event/trigger pages should remain marked draft until Tier 1.1 and 1.2 decisions are integrated.
+- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Event representation may cite approved CD-11, while trigger-shifting pages remain draft until Tier 1.2 decisions are integrated.
 - **Likely conflicts:** None if the curator does not edit `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, MATLAB code, or tests. Agent 0 should integrate conceptual updates before asking the curator to refresh drafts.
 - **Validation criteria:** Every technical statement maps to a decision ID, code location, test, or explicitly labeled unresolved question; implementation detail is separated from scientific rationale; no sensitive paths/data are included; citations are not fabricated; Agent 0 and the researcher review the drafts before publication.
 
