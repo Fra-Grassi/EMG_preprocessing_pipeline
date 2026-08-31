@@ -86,10 +86,13 @@ end
 sets.recording_layout = 'EMG';
 
 % ---- Conditions and Triggers ----
-% Numeric vector specifying condition triggers (e.g., [41, 42, 43]).
+% Cell array of character vectors specifying condition triggers (e.g., {'41', '42', '43'}).
+% Stage 1 converts all EEG.event.type values to character vectors, consistent with
+% character-based event handling in relevant EEGLAB functions.
+% Enter the exact experimenter-defined code, preserving prefixes, spaces, and leading zeros.
 % IMPORTANT: these are assumed to also be the time-locking epoch event (the 0ms time of the epoch)
 % Here specift the condition trigger as the punchline trigger
-sets.condition_triggers = [121, 221];
+sets.condition_triggers = {'121', '221'};
 
 % Cell array of strings specifying condition names (e.g., {'conditiona_1', 'condition_2'}).
 % IMPORTANT: condition names must be in same order as condition triggers

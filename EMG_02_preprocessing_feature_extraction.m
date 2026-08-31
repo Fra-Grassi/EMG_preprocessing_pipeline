@@ -110,10 +110,8 @@ for si = 1:length(file)
     n_event = length(EMG.event);  % get original event number
     for ev = 1:n_event
         for trigger = 1:length(sets.condition_triggers)
-            % Check if event is in the list
-            % (Considering the event might be either numerical or char)
-            if EMG.event(ev).type == sets.condition_triggers(trigger) || ...
-                    strcmp(EMG.event(ev).type, num2str(sets.condition_triggers(trigger)))
+            % Check if event matches the corresponding character trigger
+            if strcmp(EMG.event(ev).type, sets.condition_triggers{trigger})
                 
                 EMG.event(end+1) = EMG.event(ev);  % copy event at the end of the list
                 EMG.event(end).latency = EMG.event(ev).latency;  % ensure it has same latency as trigger event
