@@ -217,11 +217,13 @@ sets.baseline_correction_window = [-3000, -2000];
 sets.baseline_correction_method = 'division';
 
 % ---- Within-muscle standardization ----
-% Apply within-muscle standardization
+% Standardize extracted features separately for each muscle within a participant.
+% Parameters are estimated across all retained trials, conditions, and post-stimulus bins.
 sets.do_standardization_muscle = 1;
 
 % ---- Within-subject standardization ----
-% Apply within-subject standardization
+% Standardize extracted features across all muscles within a participant.
+% Parameters are estimated across all retained trials, conditions, muscles, and post-stimulus bins.
 sets.do_standardization_subject = 0;
 
 % ---- Feature extraction ----
@@ -278,7 +280,20 @@ sets.do_save_rejected_trial_rows = 1;
 % Specify file name for feature amplitudes, as string, with extension (e.g., 'feature-amplitudes.csv').
 sets.fname_feature_amplitudes = 'feature-amplitudes.csv';
 
-%% 0.2 - Check invalid setting combinations
+%% 0.3 - Check invalid setting combinations
+
+% Mean absolute value requires full-wave rectification before baseline correction
+if strcmp(sets.feature_extraction_method, 'mav') && ...
+        ~(sets.do_rectifying && strcmp(sets.rectify_method, 'abs'))
+    error(['MAV extraction requires full-wave rectification. ', ...
+        'Set do_rectifying to 1 and rectify_method to ''abs''.']);
+end
+
+% Within-muscle and within-subject standardization define alternative reference distributions
+if sets.do_standardization_muscle && sets.do_standardization_subject
+    error(['Within-muscle and within-subject standardization cannot both be enabled. ', ...
+        'Select one reference distribution or disable both standardization options.']);
+end
 
 % Raise error if rejected trial info saving is requested while trial averaging is enabled
 if sets.do_save_rejected_trial_rows && sets.do_trial_averaging
@@ -291,7 +306,7 @@ if sets.do_save_rejected_trial_rows && ~(sets.do_artefact_detection_automatic ||
 end
 
 
-%% 0.3 - Save settings
+%% 0.4 - Save settings
 
 % Save 'sets' in utilities folder:
 save(fullfile(sets.utilities_dir, 'preprocessing_settings.mat'), 'sets');

@@ -23,14 +23,15 @@
 %   3. Signal rectification
 %   4. Epoch extraction
 %   5. Artefact detection and rejection
-%   6. Feature extraction (by bins, optionally)
-%   7. Baseline correction
-%   8. Within-muscle and within-subject standardization
+%   6. Trial-wise waveform baseline correction
+%   7. Feature extraction by bins
+%   8. Within-muscle or within-subject feature standardization
 %   9. Trial averaging
 % (See Rutkowska et al., 20204, for details)
 %
 % Additional Features:
 % - Output data maintains original trial number (as before trial rejection).
+% - Output retains both baseline-corrected and standardized feature values.
 %
 % Usage:
 % 1. Run the script to select raw SET files (of individual participants) for processing.
@@ -38,14 +39,13 @@
 % Requirements:
 % - MATLAB
 % - EEGLab Toolbox
-% - Custom functions (e.g., save_parameters_to_file.m)
 %
 % Output:
 % - Processed SET files in the specified output directory.
 % - Extracted features.
 % - Log of rejected artefacts.
 %
-%% 2.1 - Toolboxes and functions
+%% 2.1 - Toolboxes
 
 clearvars
 
@@ -372,41 +372,34 @@ for si = 1:length(file)
     
     % Check if baseline correction is on
     if sets.do_baseline_correction
-        
-        % Get indexes of beginning and end of baseline time-window
-        baseline_start_idx = dsearchn(EMG.times', sets.baseline_correction_window(1));
-        baseline_end_idx = dsearchn(EMG.times', sets.baseline_correction_window(2));
 
-        % Average baseline within the specified time-window, per channel and trial
-        baseline_amplitudes = squeeze(...  % rows = channels, cols = trials
-            mean(...
-            EMG.data(:,...  % all channels
-            baseline_start_idx:baseline_end_idx,...  % specified time-window
-            :), ...  % all trials
-            2));  % average across time
-        
-        % Check baseline correction method
-        if strcmp(sets.baseline_correction_method, 'subtraction')
+        % Correct the entire rectified waveform separately for every muscle and trial.
+        % The baseline interval is left-inclusive and right-exclusive.
+        baseline_method = char(sets.baseline_correction_method);
 
-            % Subtract mean baseline from each trial, for each channel separately
-            for tr = 1:size(EMG.data, 3)  % loop through trials
-                for ch = 1:size(EMG.data, 1)  % loop through channels
-                    EMG.data(ch, :, tr) = EMG.data(ch, :, tr) - baseline_amplitudes(ch, tr);
-                end
+        if ~strcmp(baseline_method, 'none')
+            baseline_idx = ...
+                EMG.times >= sets.baseline_correction_window(1) & ...
+                EMG.times < sets.baseline_correction_window(2);
+
+            if ~any(baseline_idx)
+                error('apply_mav_baseline_correction:EmptyBaseline', ...
+                    'The specified baseline window contains no samples.');
             end
 
-        elseif strcmp(sets.baseline_correction_method, 'division')
+            baseline_amplitudes = mean(EMG.data(:, baseline_idx, :), 2);
 
-            % Divide each trial by mean baseline amplitude, for each channel separately
-            for tr = 1:size(EMG.data, 3)  % loop through trials
-                for ch = 1:size(EMG.data, 1)  % loop through channels
-                    EMG.data(ch, :, tr) = EMG.data(ch, :, tr) ./ baseline_amplitudes(ch, tr);
-                end
+            if strcmp(baseline_method, 'subtraction')
+                EMG.data = EMG.data - baseline_amplitudes;
+            elseif strcmp(baseline_method, 'division')
+                EMG.data = EMG.data ./ baseline_amplitudes;
+            else
+                error('apply_mav_baseline_correction:InvalidMethod', ...
+                    'Method must be ''none'', ''subtraction'', or ''division''.');
             end
-            
         end
-    
-    fprintf('\nBaseline correction (method %s) COMPLETE\n\n', sets.baseline_correction_method);
+
+        fprintf('\nBaseline correction (method %s) COMPLETE\n\n', sets.baseline_correction_method);
 
     end
 
@@ -446,91 +439,141 @@ for si = 1:length(file)
         fprintf('\nTrial rejection COMPLETE\n\n');
     end
     
-    %% 2.4.12 - Within-muscle standardization
-    % Calculate z-score over each muscle (channel) within a participant (across all trials)
-    
-    % Check if within-muscle standardization is on
-    if sets.do_standardization_muscle
+    %% 2.4.12 - Feature extraction
 
-        % Calculate z-score for each channel separately
-        % (NOTE: '[2,3]' in the following ensures zscore is calculated across all time-points (2nd dimension)
-        % and trials (3rd dimension) for each channel (1st dimension) separately;
-        EMG.data = zscore(EMG.data, 0, [2,3]);
-        
-        fprintf('\nWithin-muscle standardization COMPLETE\n\n');
-        
-    end
-    
-    %% 2.4.13 - Within-subject standardization
-    % Calculate z-score over all muscles (channels) and trials within a participant
-
-    % Check if within-subject standardization is on
-    if sets.do_standardization_subject
-
-        % Calculate z-score across all channels and trials
-        % (NOTE: 'all' in the following ensures zscore is calculated across all dimensions)
-        EMG.data = zscore(EMG.data, 0, 'all');
-
-        fprintf('\nWithin-subject standardization COMPLETE\n\n');
-
-    end
-    
-    %% 2.4.14 - Feature extraction
-
-     if sets.feature_extraction_bin_dur > abs(EMG.times(1))
+    if sets.feature_extraction_bin_dur > abs(EMG.times(1))
         % Raise error if bin duration is longer than epoch baseline
         error('Specified bin duration is longer than epoch baseline!');
 
     end
 
-    % Calculate maximum number of bins
-    n_bins = sets.epoch_length(2)*1000/sets.feature_extraction_bin_dur + 1;
+    if ~strcmp(sets.feature_extraction_method, 'mav')
+        error('Invalid feature extraction method. Currently supported value: ''mav''.');
+    end
 
-    % Preallocate array to store feature amplitude at each bin and trial, for each channel separately
-    % Add 1 more bin for baseline
-    feature_amplitudes = nan(size(EMG.data, 3), length(EMG.chanlocs), n_bins);  % (trials X channels X bins)
+    % EMG.data is already rectified. Extract ordinary means without applying abs again.
+    epoch_end_ms = sets.epoch_length(2) * 1000;
+    n_post_bins = epoch_end_ms / sets.feature_extraction_bin_dur;
 
-    % Calculate beginning of equally spaced bins in the epoch, in ms (also serving as end of respective previous bin)
-    % Also include left edge of baseline bin (from -feature_extraction_bin_dur to 0).
-    bin_edges = [-sets.feature_extraction_bin_dur, ...  % baseline bin
-        linspace(0, sets.epoch_length(2)*1000, n_bins)];  % epoch bins
+    if abs(n_post_bins - round(n_post_bins)) > 1e-10
+        error('extract_binned_mav:IncompleteBin', ...
+            'The post-stimulus epoch duration must be a multiple of the bin duration.');
+    end
 
-    % Loop through bins
+    n_post_bins = round(n_post_bins);
+    bin_edges = [-sets.feature_extraction_bin_dur, ...
+        0:sets.feature_extraction_bin_dur:epoch_end_ms];
+    n_bins = n_post_bins + 1;
+
+    n_trials = size(EMG.data, 3);
+    n_channels = size(EMG.data, 1);
+    feature_amplitudes = nan(n_trials, n_channels, n_bins);
+
     for b = 1:n_bins
-
-        % Define start and end time for the bin
-        start_time = bin_edges(b);
-        end_time = bin_edges(b+1);
-        
-        % Find indices corresponding to the bin
-        start_idx = dsearchn(EMG.times', start_time);
-        end_idx = dsearchn(EMG.times', end_time);
-
-        % Check feature extraction method
-        if strcmp(sets.feature_extraction_method, 'mav')
-            % Extract mean absolute value of the bin from all trials
-            this_feature = mean(...
-                EMG.data(:,...  % all channels
-                start_idx:end_idx,...  % from beginning to end of the bin
-                :),...  % all trials
-                2);  % average across time
+        if b < n_bins
+            sample_idx = EMG.times >= bin_edges(b) & EMG.times < bin_edges(b + 1);
+        else
+            sample_idx = EMG.times >= bin_edges(b) & EMG.times <= bin_edges(b + 1);
         end
 
-        % Store in corresponding position for current bin:
-        feature_amplitudes(:, :, b) = squeeze(permute(this_feature, [3, 2, 1]));
+        if ~any(sample_idx)
+            error('extract_binned_mav:EmptyBin', ...
+                'Bin %d contains no samples.', b);
+        end
 
+        bin_mean = mean(EMG.data(:, sample_idx, :), 2);
+        feature_amplitudes(:, :, b) = reshape(...
+            permute(bin_mean, [3, 1, 2]), n_trials, n_channels);
     end
 
     fprintf('\nFeature extraction COMPLETE\n\n');
+
+    %% 2.4.13 - Feature standardization
+
+    feature_amplitudes_z = [];
+    standardized_feature_suffix = '';
+
+    if sets.do_standardization_muscle
+        % Estimate one reference distribution per muscle from retained post-stimulus observations.
+        post_bin_idx = bin_edges(1:end-1) >= 0;
+        feature_amplitudes_z = nan(size(feature_amplitudes));
+
+        for ch = 1:size(feature_amplitudes, 2)
+            reference_values = reshape(feature_amplitudes(:, ch, post_bin_idx), [], 1);
+            reference_values = reference_values(isfinite(reference_values));
+
+            if numel(reference_values) < 2
+                error('standardize_mav_features:InvalidReference', ...
+                    ['The muscle %d standardization reference has fewer than ', ...
+                    'two finite observations.'], ch);
+            end
+
+            reference_mean = mean(reference_values);
+            reference_sd = std(reference_values, 0);
+
+            if ~isfinite(reference_sd) || reference_sd == 0
+                error('standardize_mav_features:InvalidReference', ...
+                    'The muscle %d standardization reference has zero or nonfinite SD.', ch);
+            end
+
+            feature_amplitudes_z(:, ch, :) = ...
+                (feature_amplitudes(:, ch, :) - reference_mean) ./ reference_sd;
+        end
+
+        standardized_feature_suffix = 'MAV_z_muscle';
+
+        fprintf('\nWithin-muscle feature standardization COMPLETE\n\n');
+
+    elseif sets.do_standardization_subject
+        % Estimate one participant reference distribution across all muscles and post-stimulus observations.
+        post_bin_idx = bin_edges(1:end-1) >= 0;
+        reference_values = reshape(feature_amplitudes(:, :, post_bin_idx), [], 1);
+        reference_values = reference_values(isfinite(reference_values));
+
+        if numel(reference_values) < 2
+            error('standardize_mav_features:InvalidReference', ...
+                ['The subject standardization reference has fewer than ', ...
+                'two finite observations.']);
+        end
+
+        reference_mean = mean(reference_values);
+        reference_sd = std(reference_values, 0);
+
+        if ~isfinite(reference_sd) || reference_sd == 0
+            error('standardize_mav_features:InvalidReference', ...
+                'The subject standardization reference has zero or nonfinite SD.');
+        end
+
+        feature_amplitudes_z = ...
+            (feature_amplitudes - reference_mean) ./ reference_sd;
+        standardized_feature_suffix = 'MAV_z_subject';
+
+        fprintf('\nWithin-subject feature standardization COMPLETE\n\n');
+    end
+
+    do_feature_standardization = ...
+        sets.do_standardization_muscle || sets.do_standardization_subject;
+
+    % Name the unstandardized measure according to the baseline-correction mode.
+    if ~sets.do_baseline_correction
+        unstandardized_feature_suffix = 'MAV_raw';
+    elseif strcmp(sets.baseline_correction_method, 'subtraction')
+        unstandardized_feature_suffix = 'MAV_difference';
+    elseif strcmp(sets.baseline_correction_method, 'division')
+        unstandardized_feature_suffix = 'MAV_ratio';
+    else
+        error('Invalid baseline correction method. It must be ''subtraction'' or ''division''.');
+    end
     
-    %% 2.4.15 - Trial average and store participant data
+    %% 2.4.14 - Trial average and store participant data
     
     % Here conditions are defined as the ones actually present in the EMG struct, not the ones specified in the settings.
     % This is to account for possible between-subject designs.
     this_condition_names = unique({EMG.event.type});
 
-    % Preallocate cell arrays to store amplitudes, number of trials, bin number and condition name, per condition
-    data_out_amplitudes = cell(1, length(this_condition_names));
+    % Preallocate cell arrays to store features and row identifiers per condition
+    data_out_unstandardized = cell(1, length(this_condition_names));
+    data_out_standardized = cell(1, length(this_condition_names));
     data_out_trials = cell(1, length(this_condition_names));
     data_out_bins = cell(1, length(this_condition_names));
     data_out_conditions = cell(1, length(this_condition_names));
@@ -541,14 +584,19 @@ for si = 1:length(file)
         % Get indexes of trials belonging to current condition
         cond_idx = strcmp({EMG.event.type}, this_condition_names{cond});
 
-        % Check if trial averagin is on
+        % Check if trial averaging is on
         if sets.do_trial_averaging
 
-            % Average trials belonging to current condition (separately for muscle and bin)
+            % Average unstandardized features belonging to the current condition
             this_average = mean(feature_amplitudes(cond_idx, :, :), 1);
             
             % Concatenate bin data along rows and store data
-            data_out_amplitudes{1, cond} = permute(this_average, [3,2,1]);
+            data_out_unstandardized{1, cond} = permute(this_average, [3, 2, 1]);
+
+            if do_feature_standardization
+                this_average_z = mean(feature_amplitudes_z(cond_idx, :, :), 1);
+                data_out_standardized{1, cond} = permute(this_average_z, [3, 2, 1]);
+            end
 
             % Store number of trials being averaged (repeated for number of bins)
             data_out_trials{1, cond} = repmat(sum(cond_idx), n_bins, 1);
@@ -560,13 +608,18 @@ for si = 1:length(file)
             data_out_conditions{1, cond} = repmat(this_condition_names(cond), n_bins, 1);
 
         else
-            % If not averaging, get all trials belonging to current condition
+            % If not averaging, get all unstandardized trials belonging to the current condition
             this_condition = feature_amplitudes(cond_idx, :, :);
             
             % Reshape data concatenating first along bins and then along trials, and store it
-            % NOTE TO SELF: must understand better this passage
-            data_out_amplitudes{1, cond} = reshape(permute(this_condition, [3, 1, 2]), ...
+            data_out_unstandardized{1, cond} = reshape(permute(this_condition, [3, 1, 2]), ...
                 [size(this_condition,1)*size(this_condition,3), size(this_condition, 2)]);
+
+            if do_feature_standardization
+                this_condition_z = feature_amplitudes_z(cond_idx, :, :);
+                data_out_standardized{1, cond} = reshape(permute(this_condition_z, [3, 1, 2]), ...
+                    [size(this_condition_z, 1)*size(this_condition_z, 3), size(this_condition_z, 2)]);
+            end
 
             % Store original trial numbers for current condition (each repeated for number of bins)
             data_out_trials{1, cond} = repelem([EMG.event(cond_idx).trial_number]', n_bins, 1);
@@ -587,12 +640,18 @@ for si = 1:length(file)
         participant_conditions = strings(0, 1);
         participant_trials = zeros(0, 1);
         participant_bins = zeros(0, 1);
-        participant_amplitudes = zeros(0, length(sets.emg_channel_names));
+        participant_unstandardized = zeros(0, length(sets.emg_channel_names));
+        participant_standardized = zeros(0, length(sets.emg_channel_names));
     else
         participant_conditions = string(cat(1, data_out_conditions{:}));
         participant_trials = cat(1, data_out_trials{:});
         participant_bins = cat(1, data_out_bins{:});
-        participant_amplitudes = cat(1, data_out_amplitudes{:});
+        participant_unstandardized = cat(1, data_out_unstandardized{:});
+        if do_feature_standardization
+            participant_standardized = cat(1, data_out_standardized{:});
+        else
+            participant_standardized = zeros(length(participant_conditions), 0);
+        end
     end
 
     participant_features_table = table(...
@@ -602,9 +661,19 @@ for si = 1:length(file)
         participant_bins, ...
         'VariableNames', {'subject_ID', 'condition', 'trial_number', 'bin'});
 
-    % Add one numeric feature column per EMG channel
+    % Add adjacent unstandardized and standardized feature columns per muscle
     for ch = 1:length(sets.emg_channel_names)
-        participant_features_table.(sets.emg_channel_names{ch}) = participant_amplitudes(:, ch);
+        unstandardized_variable = ...
+            [sets.emg_channel_names{ch}, '_', unstandardized_feature_suffix];
+        participant_features_table.(unstandardized_variable) = ...
+            participant_unstandardized(:, ch);
+
+        if do_feature_standardization
+            standardized_variable = ...
+                [sets.emg_channel_names{ch}, '_', standardized_feature_suffix];
+            participant_features_table.(standardized_variable) = ...
+                participant_standardized(:, ch);
+        end
     end
 
     feature_variable_names = participant_features_table.Properties.VariableNames;
@@ -672,7 +741,7 @@ for si = 1:length(file)
 
     fprintf('\nStoring extracted features COMPLETE\n\n')
     
-    %% 2.4.16 - Save feature data to file
+    %% 2.4.15 - Save feature data to file
     
     % Check if saving features is on
     if sets.do_save_features_amplitudes
