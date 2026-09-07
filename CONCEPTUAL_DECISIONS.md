@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-08-31
-Applies to validated baseline: commit `f93f00a`
+Last updated: 2026-09-07
+Applies to validated baseline: commit `3786055`
 
 ## Purpose and scope
 
@@ -285,7 +285,6 @@ The following points are not settled by the completed MAV work:
 
 - automatic artifact-rejection thresholds and the scientific criteria used to select them;
 - the validated behavior of variable photodiode trigger shifting;
-- a canonical event-marker representation across acquisition systems;
 - acceptable behavior when a configured condition contains zero trials;
 - how output files should encode the exact settings and software versions used for a run;
 - formal compatibility claims beyond the MATLAB R2024b tests already performed.

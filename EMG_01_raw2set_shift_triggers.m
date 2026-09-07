@@ -18,7 +18,7 @@
 %
 % Features:
 % - Batch conversion of selected raw files to SET format.
-% - Conversion of events from string to numeric.
+% - Conversion of numeric and string event types to character vectors without changing their encoded values.
 % - Channel location information is added based on the specified layout.
 % - Converting dataset to SET file.
 % - Optional trigger shifting to correct event timings:

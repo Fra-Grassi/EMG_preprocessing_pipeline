@@ -120,6 +120,8 @@ sets.emg_channel_names = {'CS', 'OO', 'ZM'};
 
 % ---- Trigger shift ----
 % Shift triggers according to specified method
+% NOTE: This interface reflects the current legacy implementation and is under
+% review in Tier 1.2. Its marker-input contract is not yet finalized.
 sets.do_shift_triggers = 0;
 
 % Specify method to shift triggers.
@@ -131,7 +133,8 @@ sets.shift_method = 20;
 
 % Epoch triggers
 % Assumed to be the same as condition triggers. If not:
-% Numeric vector specifying triggers to shift (e.g., [11, 12, 13]).
+% The current legacy implementation expects a numeric vector (e.g., [11, 12, 13]).
+% This differs from the character-based event contract and will be resolved in Tier 1.2.
 % See 'help shift_triggers' for details.
 sets.shift_markers = [];
 

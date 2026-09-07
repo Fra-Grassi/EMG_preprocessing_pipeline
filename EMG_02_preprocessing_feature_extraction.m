@@ -375,26 +375,24 @@ for si = 1:length(file)
         % The baseline interval is left-inclusive and right-exclusive.
         baseline_method = char(sets.baseline_correction_method);
 
-        if ~strcmp(baseline_method, 'none')
-            baseline_idx = ...
-                EMG.times >= sets.baseline_correction_window(1) & ...
-                EMG.times < sets.baseline_correction_window(2);
+        baseline_idx = ...
+            EMG.times >= sets.baseline_correction_window(1) & ...
+            EMG.times < sets.baseline_correction_window(2);
 
-            if ~any(baseline_idx)
-                error('apply_mav_baseline_correction:EmptyBaseline', ...
-                    'The specified baseline window contains no samples.');
-            end
+        if ~any(baseline_idx)
+            error('apply_mav_baseline_correction:EmptyBaseline', ...
+                'The specified baseline window contains no samples.');
+        end
 
-            baseline_amplitudes = mean(EMG.data(:, baseline_idx, :), 2);
+        baseline_amplitudes = mean(EMG.data(:, baseline_idx, :), 2);
 
-            if strcmp(baseline_method, 'subtraction')
-                EMG.data = EMG.data - baseline_amplitudes;
-            elseif strcmp(baseline_method, 'division')
-                EMG.data = EMG.data ./ baseline_amplitudes;
-            else
-                error('apply_mav_baseline_correction:InvalidMethod', ...
-                    'Method must be ''none'', ''subtraction'', or ''division''.');
-            end
+        if strcmp(baseline_method, 'subtraction')
+            EMG.data = EMG.data - baseline_amplitudes;
+        elseif strcmp(baseline_method, 'division')
+            EMG.data = EMG.data ./ baseline_amplitudes;
+        else
+            error('apply_mav_baseline_correction:InvalidMethod', ...
+                'Method must be ''subtraction'' or ''division''.');
         end
 
         fprintf('\nBaseline correction (method %s) COMPLETE\n\n', sets.baseline_correction_method);

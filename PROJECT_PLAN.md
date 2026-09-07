@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-08-31
-Validated code baseline: commit `f93f00a` (`main`)
+Last updated: 2026-09-07
+Validated code baseline: commit `3786055` (`main`)
 
 ## Purpose
 
@@ -269,7 +269,8 @@ The authoritative information flow is:
 
 ### 2.2 Expand regression coverage beyond MAV
 
-- [ ] Add tests for marker normalization, trigger shifting, participant-key preservation, rejected-row reconstruction, and settings validation.
+- [x] Add deterministic tests for marker normalization.
+- [ ] Add automated integration coverage for condition-label creation, trigger shifting, participant-key preservation, rejected-row reconstruction, and settings validation.
 - [ ] Add small synthetic integration fixtures where EEGLAB-independent testing is possible.
 - [ ] Maintain explicit MATLAB R2024b execution instructions and record compatibility results for later releases when tested.
 
