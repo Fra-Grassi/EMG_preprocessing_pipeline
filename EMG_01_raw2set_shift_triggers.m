@@ -77,15 +77,10 @@ for si = 1:length(file)
 
     EMG_bkp = EMG;  % temporary, for debugging
     
-    %% 1.3.2 - Inspect events and convert to numeric
+    %% 1.3.2 - Convert event types to character vectors
     
-    % NOTE: at the moment, for consistency with the rest of the pipeline, all experimental events (e.g., condition
-    % markers) must be numbers, either in numeric or string form (e.g. 20, or '20').
-    % Other events can be of different type.
-    % If your data requires to work with non-numeric events, please contact francesco.grassi@uni-goettingen.de
-
-    % Use custom function to check events and convert them to numeric if possible
-    % Please pay attention to any warning or message displayed in the Command Window
+    % Convert numeric and string event types to character vectors without changing
+    % the experimenter-defined trigger codes. Existing character event types remain unchanged.
     EMG = fix_EEG_markers(EMG);
 
     %% 1.3.3 - Add channel location info
