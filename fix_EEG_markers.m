@@ -18,4 +18,6 @@ function EEG = fix_EEG_markers(EEG)
             EEG.event(i).type = char(current_type);
         end
     end
+
+    fprintf('\nAll event markers have been converted to char\n\n');
 end

@@ -66,6 +66,15 @@ verifyEqual(testCase, rmfield(normalized_EEG.event, 'type'), ...
     rmfield(events_before_normalization, 'type'));
 end
 
+function testCompletionMessage(testCase)
+EEG = marker_fixture({121});
+
+output_text = evalc('fix_EEG_markers(EEG);');
+
+verifyEqual(testCase, output_text, ...
+    sprintf('\nAll event markers have been converted to char\n\n'));
+end
+
 function EEG = marker_fixture(event_types)
 n_events = numel(event_types);
 event_template = struct( ...
