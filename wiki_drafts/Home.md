@@ -16,7 +16,6 @@ Planned or unresolved behavior is not presented here as finalized. In particular
 - [Participant-Safe Feature Outputs](Participant-Safe-Feature-Outputs.md) explains participant identity, row keys, rejected-trial reconstruction, cumulative checkpoints, missing values, and the wide feature table.
 - [MAV Processing and Standardization](MAV-Processing-and-Standardization.md) explains the validated mean-absolute-value workflow, binning, standardization reference populations, averaging order, and output columns.
 - [Event Representation and Condition Labels](Event-Representation-and-Condition-Labels.md) explains character-based event types, exact trigger comparison, copied condition events, and the non-idempotent Stage 2 section contract.
-- [Review Notes](REVIEW_NOTES.md) records source inconsistencies and ambiguous statements that require review by Agent 0 or the researcher.
 
 ## Pipeline at a glance
 
