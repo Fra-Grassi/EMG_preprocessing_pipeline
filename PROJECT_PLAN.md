@@ -90,11 +90,11 @@ These are the recommended next tasks. They refine existing behavior rather than 
 ### 1.1 Normalize event types and condition matching
 
 - [x] Define the event representation contract in CD-11.
-- [ ] Convert every event type to a MATLAB character vector without altering its encoded content: numeric values use their character representation, strings convert to characters, and existing character values remain unchanged.
-- [ ] Remove the current Brain Vision prefix/spacing conversion and the original-value audit field logic.
-- [ ] Require condition triggers in Stage 0 to be entered as character vectors and explain that event types are converted to characters for EEGLAB compatibility.
-- [ ] Replace Stage 2's mixed numeric/character comparison with `strcmp` while preserving the existing condition-event copying logic.
-- [ ] Add focused deterministic tests for numeric, character, string, Brain Vision-style, and textual marker conversion.
+- [x] Convert every event type to a MATLAB character vector without altering its encoded content: numeric values use their character representation, strings convert to characters, and existing character values remain unchanged.
+- [x] Remove the current Brain Vision prefix/spacing conversion and the original-value audit field logic.
+- [x] Require condition triggers in Stage 0 to be entered as character vectors and explain that event types are converted to characters for EEGLAB compatibility.
+- [x] Replace Stage 2's mixed numeric/character comparison with `strcmp` while preserving the existing condition-event copying logic.
+- [x] Add focused deterministic tests for numeric, character, string, Brain Vision-style, and textual marker conversion.
 - [x] Retain the general Stage 2 section-execution contract: each section is run once, so Section 2.4.2 receives no special duplicate-execution guard (CD-12).
 
 Likely files: `fix_EEG_markers.m`, Stage 1, Stage 2, new tests.
@@ -187,6 +187,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.1-A: canonical marker normalization
 
+- **Status:** Completed, integrated, and validated in MATLAB R2024b.
 - **Objective:** Make `fix_EEG_markers` implement CD-11 by converting numeric and string event types to character vectors while leaving existing character content exactly unchanged.
 - **Relevant files/modules:** `fix_EEG_markers.m`; new `tests/test_event_marker_normalization.m`.
 - **Dependencies:** CD-11. No dependency on another implementation task.
@@ -195,6 +196,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.1-B: adapt Stage 0 and Stage 2 to character triggers
 
+- **Status:** Completed, integrated, and validated on a representative participant.
 - **Objective:** Change the configured condition triggers to character vectors, inform users of the character conversion, and replace only the Stage 2 comparison expression while retaining the existing nested loops and event-copying behavior.
 - **Relevant files/modules:** Trigger comments/value in `EMG_00_settings.m`; Section 2.4.2 in `EMG_02_preprocessing_feature_extraction.m`; a focused manual or deterministic test if it can exercise the production logic without adding a new helper.
 - **Dependencies:** CD-11 and the existing one-to-one order of `sets.condition_triggers` and `sets.condition_names`. It does not depend on Task T1.1-A's code because both agents work from the approved contract.
@@ -244,7 +246,7 @@ Delegate wiki preparation to a documentation-only Wiki Curator agent. This is sa
 
 - **Objective:** Transform approved conceptual material into a navigable future-wiki outline and draft pages without inventing methods or decisions.
 - **Relevant files/modules:** Read-only access to `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, relevant MATLAB comments, and tests; new output only under a dedicated `wiki_drafts/` directory unless Agent 0 specifies another location.
-- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Event representation may cite approved CD-11, while trigger-shifting pages remain draft until Tier 1.2 decisions are integrated.
+- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Event representation may cite implemented and validated CD-11/CD-12, while trigger-shifting pages remain draft until Tier 1.2 decisions are integrated.
 - **Likely conflicts:** None if the curator does not edit `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, MATLAB code, or tests. Agent 0 should integrate conceptual updates before asking the curator to refresh drafts.
 - **Validation criteria:** Every technical statement maps to a decision ID, code location, test, or explicitly labeled unresolved question; implementation detail is separated from scientific rationale; no sensitive paths/data are included; citations are not fabricated; Agent 0 and the researcher review the drafts before publication.
 
@@ -301,9 +303,9 @@ The authoritative information flow is:
 
 ## Recommended execution order
 
-1. Tier 1.3: settings validator, because it establishes entry-point contracts for later work.
-2. Tier 1.1: event normalization and matching.
-3. Tier 1.2: trigger shifting, built on the event-type contract.
+1. Tier 1.1: event normalization and matching — completed and validated.
+2. Tier 1.2: trigger shifting, built on the event-type contract — current workstream.
+3. Tier 1.3: settings validator, establishing entry-point contracts for later work.
 4. Tier 1.4: file selection and participant identity.
 5. Tier 1.5: rejection accounting and scientific audit.
 6. Tier 2 work in small, independently reviewed units.
@@ -311,6 +313,12 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+Tier 1.1 validation completed in MATLAB R2024b on 2026-09-07:
+
+- the deterministic event-marker normalization tests passed;
+- the Stage 0 and Stage 2 character-trigger changes passed their isolated checks;
+- the combined implementation successfully processed one representative participant through all pipeline stages.
 
 The following evidence exists at commit `f93f00a`:
 

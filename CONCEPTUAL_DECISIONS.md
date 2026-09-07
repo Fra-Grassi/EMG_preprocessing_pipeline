@@ -29,8 +29,8 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-08 | Keep a wide output with adjacent unstandardized and standardized columns per muscle and method-specific names. | Implemented and validated |
 | CD-09 | Keep Stage 2 production calculations inline after helper-backed validation; retain helpers only as test references. | Implemented and validated |
 | CD-10 | Add one entry-point settings validator later rather than accumulating redundant checks inside participant loops. | Approved direction; not implemented |
-| CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Approved; not implemented |
-| CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Approved existing behavior |
+| CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
+| CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
 
 Trigger shifting does not yet have an approved decision ID. Worker agents must treat related conclusions as proposals until Agent 0 and the researcher approve them. New approved decisions should receive the next available ID rather than rewriting an existing entry.
 
@@ -64,7 +64,7 @@ Stage 1 imports selected BDF files, normalizes supported event-marker forms, opt
 
 ### Event representation contract
 
-All imported `EEG.event.type` values will be represented as MATLAB character vectors. Conversion changes only MATLAB type and must not rewrite the trigger value encoded by the experimenter:
+All imported `EEG.event.type` values are represented as MATLAB character vectors. Conversion changes only MATLAB type and does not rewrite the trigger value encoded by the experimenter:
 
 - numeric `121` becomes character `'121'`;
 - character `'121'` remains `'121'`;
@@ -72,9 +72,9 @@ All imported `EEG.event.type` values will be represented as MATLAB character vec
 - character Brain Vision markers such as `'S 121'` and `'S121'` remain exactly unchanged;
 - prefixes, spacing, leading zeros, and textual event names are preserved.
 
-No original-value audit field is added. Stage 0 will require trigger settings to be entered as character vectors and will explain that the pipeline converts event types to characters, consistent with the character-based event handling used by relevant EEGLAB functions.
+No original-value audit field is added. Stage 0 requires trigger settings to be entered as character vectors and explains that the pipeline converts event types to characters, consistent with the character-based event handling used by relevant EEGLAB functions.
 
-Stage 2 retains its existing approach of copying each matching trigger event and replacing the copy's type with the configured condition name. Because the whole source event is copied, its latency and other event metadata are already preserved. Only the trigger comparison must change to character comparison.
+Stage 2 retains its existing approach of copying each matching trigger event and replacing the copy's type with the configured condition name. Because the whole source event is copied, its latency and other event metadata are preserved. Trigger matching uses exact character comparison.
 
 Stage 2 sections are intentionally not protected against repeated execution on the same in-memory structure. Running any preprocessing section twice may alter the result, so section-level users are responsible for running each section once. The completion message at the end of each section is the execution cue. Section 2.4.2 therefore receives no special duplicate-label guard.
 
