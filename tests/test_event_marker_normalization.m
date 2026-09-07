@@ -2,6 +2,17 @@ function tests = test_event_marker_normalization
 tests = functiontests(localfunctions);
 end
 
+function setupOnce(testCase)
+tests_dir = fileparts(mfilename('fullpath'));
+project_dir = fileparts(tests_dir);
+testCase.TestData.original_path = path;
+addpath(project_dir);
+end
+
+function teardownOnce(testCase)
+path(testCase.TestData.original_path);
+end
+
 function testNumericMarkerBecomesCharacter(testCase)
 EEG = marker_fixture({121});
 
