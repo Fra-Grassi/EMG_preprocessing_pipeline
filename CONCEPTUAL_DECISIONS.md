@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
 Last updated: 2026-09-07
-Applies to validated baseline: commit `3786055`
+Applies to validated baseline: commit `40672a8`
 
 ## Purpose and scope
 

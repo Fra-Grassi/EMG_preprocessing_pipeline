@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
 Last updated: 2026-09-07
-Validated code baseline: commit `3786055` (`main`)
+Validated code baseline: commit `40672a8`
 
 ## Purpose
 
@@ -314,6 +314,14 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+The baseline-correction interface cleanup at commit `40672a8` was validated in MATLAB on 2026-09-07:
+
+- the deterministic test suite passed;
+- Stage 2 completed with baseline correction set to `subtraction`;
+- Stage 2 completed with baseline correction set to `division`;
+- Stage 2 completed with `sets.do_baseline_correction = 0` and produced the raw-MAV pathway;
+- enabling baseline correction with method `none` produced the intended invalid-method error.
 
 Tier 1.1 validation completed in MATLAB R2024b on 2026-09-07:
 
