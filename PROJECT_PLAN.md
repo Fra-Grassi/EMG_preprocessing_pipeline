@@ -103,7 +103,7 @@ Dependency note: complete before a broad trigger-shifting refactor.
 ### 1.2 Correct and test trigger shifting
 
 - [x] Audit photodiode onset detection and validate the test-only reference (T1.2-A).
-- [ ] Audit fixed-delay and trial-specific latency application (T1.2-B).
+- [x] Audit fixed-delay and trial-specific latency application and validate the test-only reference (T1.2-B).
 - [ ] Fix trial-delay indexing so each matching event receives its own delay rather than repeatedly selecting the first delay.
 - [ ] Handle a missing photodiode channel, missing zero sample, and trials with no threshold crossing explicitly.
 - [x] Confirm the sign and rounding convention used to convert milliseconds to samples (CD-13: add signed offsets using `round`).
@@ -215,7 +215,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.2-B: latency-application reference
 
-- **Status:** Ready to start; direction and rounding approved in CD-13 on 2026-09-08.
+- **Status:** Completed as an audit and test-only reference under CD-13; the researcher reported the MATLAB test suite passing on 2026-09-08. Agent 3 commit `accfbce` was integrated unchanged as `ca9f604`. Production integration remains pending.
 - **Objective:** Specify and test how scalar fixed delays and trial-specific delay vectors are applied, in order, only to matching events while producing an auditable before/after record.
 - **Relevant files/modules:** New test-only reference logic under `tests/helpers`; new `tests/test_trigger_latency_application.m`; read-only audit of fixed and variable branches in `shift_triggers.m`.
 - **Dependencies:** CD-11 and the direction/rounding portions of Gate S. It is independent of photodiode detection because it accepts delays as inputs.
@@ -317,6 +317,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+Task T1.2-B validation was reported by the researcher on 2026-09-08: the MATLAB latency-application test suite passed at Agent 3 commit `accfbce` (integrated unchanged as `ca9f604`). Coverage includes signed and zero delays, fractional and half-sample rounding, fractional original latencies, exact character matching, distinct explicitly mapped delays, metadata preservation, mapping/count errors, and diagnostic agreement. This validates the numerical reference; production `shift_triggers.m` and EEGLAB epoch-to-event mapping still require T1.2-C integration and validation.
 
 Task T1.2-A validation was reported by the researcher on 2026-09-08: all photodiode onset-detection reference tests passed at Agent 3 commit `2a624b4` (integrated unchanged as `9ac2f7f`). This validates the tested numerical alternatives, not production `shift_triggers.m` or approval of any Gate S policy. The audit and reference are under `tests/`; T1.2-B and T1.2-C remain outstanding.
 

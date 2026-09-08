@@ -31,7 +31,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-10 | Add one entry-point settings validator later rather than accumulating redundant checks inside participant loops. | Approved direction; not implemented |
 | CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
-| CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Approved on 2026-09-08; production integration pending |
+| CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Approved and test-only reference validated on 2026-09-08; production integration pending |
 
 CD-13 settles trigger-shift direction and rounding. Other trigger-shifting choices remain proposals until approved by the researcher. New approved decisions should receive the next available ID rather than rewriting an existing entry.
 
@@ -48,7 +48,7 @@ corrected_latency = original_latency + sample_offset;
 
 A positive photodiode delay means measured stimulus onset occurs after the recorded trigger, so the corrected trigger moves later. This preserves the existing intended direction. A negative signed delay moves an event earlier; zero leaves its latency unchanged. Only the offset is rounded; the original event latency is not rounded.
 
-The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-integer ties away from zero), replacing the current `ceil` convention. T1.2-B should test positive, negative, zero, fractional-sample, and half-sample offsets. Production implementation and MATLAB validation remain pending. The threshold, sustained-crossing duration, zero-time anchor, missing-crossing policy, and boundary-epoch policy are still unresolved.
+The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-integer ties away from zero), replacing the current `ceil` convention. T1.2-B tests positive, negative, zero, fractional-sample, and half-sample offsets. The researcher reported the MATLAB reference suite passing on 2026-09-08 at source commit `accfbce`, integrated unchanged as `ca9f604`; see [the handoff](tests/trigger_latency_application_handoff.md). Its explicit mapping is supplied by the caller and does not establish EEGLAB epoch provenance. Production implementation and its MATLAB/EEGLAB validation remain pending. The threshold, sustained-crossing duration, zero-time anchor, missing-crossing policy, and boundary-epoch policy are still unresolved.
 
 ## Cross-agent knowledge protocol
 
