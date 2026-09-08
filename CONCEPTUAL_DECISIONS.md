@@ -1,6 +1,6 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 Applies to validated baseline: commit `40672a8`
 
 ## Purpose and scope
@@ -33,6 +33,8 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
 
 Trigger shifting does not yet have an approved decision ID. Worker agents must treat related conclusions as proposals until Agent 0 and the researcher approve them. New approved decisions should receive the next available ID rather than rewriting an existing entry.
+
+T1.2-A's photodiode onset-detection audit and test-only reference are integrated at `9ac2f7f` (Agent 3 source commit `2a624b4`); the researcher reported all reference tests passing on 2026-09-08. See [the audit](tests/trigger_shift_photodiode_audit.md) for current defects and unresolved scientific choices. Passing these parameterized tests does not approve a threshold, duration, zero-time anchor, failure policy, shift direction, or rounding rule. EEGLAB-based preprocessing remains part of the planned production workflow.
 
 ## Cross-agent knowledge protocol
 

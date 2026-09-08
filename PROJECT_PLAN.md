@@ -1,6 +1,6 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 Validated code baseline: commit `40672a8`
 
 ## Purpose
@@ -102,7 +102,8 @@ Dependency note: complete before a broad trigger-shifting refactor.
 
 ### 1.2 Correct and test trigger shifting
 
-- [ ] Audit fixed-delay and photodiode-derived shifting independently.
+- [x] Audit photodiode onset detection and validate the test-only reference (T1.2-A).
+- [ ] Audit fixed-delay and trial-specific latency application (T1.2-B).
 - [ ] Fix trial-delay indexing so each matching event receives its own delay rather than repeatedly selecting the first delay.
 - [ ] Handle a missing photodiode channel, missing zero sample, and trials with no threshold crossing explicitly.
 - [ ] Confirm the sign and rounding convention used to convert milliseconds to samples.
@@ -205,6 +206,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.2-A: photodiode onset-detection reference
 
+- **Status:** Completed as an audit and parameterized test-only reference; all tests passed in the researcher's MATLAB run, reported on 2026-09-08. Agent 3 commit `2a624b4` was integrated as `9ac2f7f`. Production shifting and Gate S policy approval remain pending.
 - **Objective:** Isolate the conversion of a processed photodiode epoch into one delay per trial and expose every scientific choice from Gate S rather than hiding it in EEGLAB calls.
 - **Relevant files/modules:** New test-only reference logic under `tests/helpers`; new `tests/test_photodiode_delay_detection.m`; read-only audit of the variable branch in `shift_triggers.m`.
 - **Dependencies:** Gate S may remain partly undecided while the agent creates parameterized tests, but implementation cannot be declared final until every policy is approved.
@@ -314,6 +316,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+Task T1.2-A validation was reported by the researcher on 2026-09-08: all photodiode onset-detection reference tests passed at Agent 3 commit `2a624b4` (integrated unchanged as `9ac2f7f`). This validates the tested numerical alternatives, not production `shift_triggers.m` or approval of any Gate S policy. The audit and reference are under `tests/`; T1.2-B and T1.2-C remain outstanding.
 
 The baseline-correction interface cleanup at commit `40672a8` was validated in MATLAB on 2026-09-07:
 
