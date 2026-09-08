@@ -106,7 +106,7 @@ Dependency note: complete before a broad trigger-shifting refactor.
 - [ ] Audit fixed-delay and trial-specific latency application (T1.2-B).
 - [ ] Fix trial-delay indexing so each matching event receives its own delay rather than repeatedly selecting the first delay.
 - [ ] Handle a missing photodiode channel, missing zero sample, and trials with no threshold crossing explicitly.
-- [ ] Confirm the sign and rounding convention used to convert milliseconds to samples.
+- [x] Confirm the sign and rounding convention used to convert milliseconds to samples (CD-13: add signed offsets using `round`).
 - [ ] Document and test dependencies such as `pop_cleanline` and `bwareafilt`.
 - [ ] Preserve an auditable before/after latency record or equivalent validation output before trusting variable-delay mode.
 
@@ -173,10 +173,10 @@ The representation changes only MATLAB type, not the experimenter's encoded trig
 
 #### Gate S: trigger-shift scientific contract
 
-Before final variable-shift integration, the researcher must confirm:
+Approved on 2026-09-08 (CD-13): preserve the existing direction by adding signed delays to latency, with sample offsets calculated as `round(delay_ms * srate / 1000)`. Round the offset only, preserving any fractional part of the original latency. T1.2-B can proceed under this contract.
 
-- whether a positive measured photodiode delay should increase event latency;
-- whether milliseconds-to-samples conversion uses `round`, `ceil`, or another stated rule;
+Before final variable-shift integration, the researcher must still confirm:
+
 - how the photodiode threshold is defined relative to the processed signal;
 - whether the minimum sustained crossing is specified in samples or milliseconds;
 - whether a missing crossing aborts the participant, leaves the trigger unchanged, or follows another explicit policy;
@@ -215,6 +215,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.2-B: latency-application reference
 
+- **Status:** Ready to start; direction and rounding approved in CD-13 on 2026-09-08.
 - **Objective:** Specify and test how scalar fixed delays and trial-specific delay vectors are applied, in order, only to matching events while producing an auditable before/after record.
 - **Relevant files/modules:** New test-only reference logic under `tests/helpers`; new `tests/test_trigger_latency_application.m`; read-only audit of fixed and variable branches in `shift_triggers.m`.
 - **Dependencies:** CD-11 and the direction/rounding portions of Gate S. It is independent of photodiode detection because it accepts delays as inputs.

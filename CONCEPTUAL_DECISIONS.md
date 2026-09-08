@@ -31,10 +31,24 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-10 | Add one entry-point settings validator later rather than accumulating redundant checks inside participant loops. | Approved direction; not implemented |
 | CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
+| CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Approved on 2026-09-08; production integration pending |
 
-Trigger shifting does not yet have an approved decision ID. Worker agents must treat related conclusions as proposals until Agent 0 and the researcher approve them. New approved decisions should receive the next available ID rather than rewriting an existing entry.
+CD-13 settles trigger-shift direction and rounding. Other trigger-shifting choices remain proposals until approved by the researcher. New approved decisions should receive the next available ID rather than rewriting an existing entry.
 
 T1.2-A's photodiode onset-detection audit and test-only reference are integrated at `9ac2f7f` (Agent 3 source commit `2a624b4`); the researcher reported all reference tests passing on 2026-09-08. See [the audit](tests/trigger_shift_photodiode_audit.md) for current defects and unresolved scientific choices. Passing these parameterized tests does not approve a threshold, duration, zero-time anchor, failure policy, shift direction, or rounding rule. EEGLAB-based preprocessing remains part of the planned production workflow.
+
+## Trigger-shift direction and rounding (CD-13)
+
+The researcher approved these conventions on 2026-09-08 for fixed and trial-specific delay application:
+
+```matlab
+sample_offset = round(delay_ms * srate / 1000);
+corrected_latency = original_latency + sample_offset;
+```
+
+A positive photodiode delay means measured stimulus onset occurs after the recorded trigger, so the corrected trigger moves later. This preserves the existing intended direction. A negative signed delay moves an event earlier; zero leaves its latency unchanged. Only the offset is rounded; the original event latency is not rounded.
+
+The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-integer ties away from zero), replacing the current `ceil` convention. T1.2-B should test positive, negative, zero, fractional-sample, and half-sample offsets. Production implementation and MATLAB validation remain pending. The threshold, sustained-crossing duration, zero-time anchor, missing-crossing policy, and boundary-epoch policy are still unresolved.
 
 ## Cross-agent knowledge protocol
 
