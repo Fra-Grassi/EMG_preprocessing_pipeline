@@ -22,7 +22,8 @@
 % - Channel location information is added based on the specified layout.
 % - Converting dataset to SET file.
 % - Optional trigger shifting to correct event timings:
-%   - 'variable' mode: Uses photodiode signals to align triggers accurately.
+%   - 'variable' mode: Per-target photodiode delay with recording-median fallback.
+%   - 'median' mode: Recording median of valid photodiode delays for all targets.
 %   - Fixed delay mode: Applies a constant time shift to all triggers.
 %
 % Usage:
@@ -101,11 +102,24 @@ for si = 1:length(file)
     
     % Check if trigger shift is on
     if sets.do_shift_triggers
-        EMG = shift_triggers(EMG, ...
-            sets.shift_markers, ...
+        shift_markers = sets.shift_markers;
+        if isempty(shift_markers)
+            shift_markers = sets.condition_triggers;
+        end
+        % Older saved settings use the approved 20 ms default.
+        minimum_duration_ms = 20;
+        if isfield(sets, 'shift_minimum_duration_ms')
+            minimum_duration_ms = sets.shift_minimum_duration_ms;
+        end
+        [EMG, trigger_shift_diagnostics] = shift_triggers(EMG, ...
+            shift_markers, ...
             sets.shift_method, ...
             sets.shift_window, ...
-            sets.shift_threshold);
+            sets.shift_threshold, minimum_duration_ms);
+        % Separate participant-level audit; no new EEG event fields.
+        [~, input_stem] = fileparts(file{si});
+        save(fullfile(sets.rawSET_dir, [input_stem '_trigger_shift_diagnostics.mat']), ...
+            'trigger_shift_diagnostics');
     end
     
     pause(5); close all

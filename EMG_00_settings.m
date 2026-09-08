@@ -120,36 +120,39 @@ sets.emg_channel_names = {'CS', 'OO', 'ZM'};
 
 % ---- Trigger shift ----
 % Shift triggers according to specified method
-% NOTE: This interface reflects the current legacy implementation and is under
-% review in Tier 1.2. Its marker-input contract is not yet finalized.
+% CD-13: add round(delay_ms * srate / 1000) to each selected event latency.
 sets.do_shift_triggers = 0;
 
 % Specify method to shift triggers.
 % Possible values:
-%   - 'variable':       Uses a photodiode signal to determine the delay.
+%   - 'variable':       Per-target photodiode delay, recording-median fallback.
+%   - 'median':         Recording median of valid delays for all targets.
 %   - Numeric value:    Constant delay in milliseconds to shift all specified triggers.
 % See 'help shift_triggers' for details.
 sets.shift_method = 20;
 
 % Epoch triggers
-% Assumed to be the same as condition triggers. If not:
-% The current legacy implementation expects a numeric vector (e.g., [11, 12, 13]).
-% This differs from the character-based event contract and will be resolved in Tier 1.2.
+% Empty uses condition_triggers in Stage 1. Otherwise supply exact character
+% codes, e.g. {'121', 'S 121'}, preserving spaces, prefixes and leading zeros.
 % See 'help shift_triggers' for details.
 sets.shift_markers = [];
 
 % Epoch length
 % Numeric vector specifying epoch start and end in seconds, around triggers to shift.
 % Pre-stimulus baseline timepoints are negative (e.g., [-0.5, 3]).
-% Only needed if 'trigger_shift' is set to 'variable'. See 'help shift_triggers' for details.
+% Required for 'variable' and 'median'; must include the [-29,0] ms baseline.
 % (This can be quite short, as it needs to contain just the quick photodiode signal).
 sets.shift_window = [-0.06, 0.1];
 
 % Photodiode signal threshold
 % Numeric value indicating the proportion of the photodiode signal range to consider as actual response. 
 % E.g., a value of 4, means that signal above 1/4th of the total signal range is considered actual photodiode response.
-% Only needed if 'trigger_shift' is set to 'variable'. See 'help shift_triggers' for details.
+% Used for 'variable' and 'median': processed signal >= range(signal)/divisor.
 sets.shift_threshold = 4;
+
+% Sustained crossing duration in ms (sample-count duration, CD-14).
+% ceil(duration_ms*srate/1000) consecutive samples: 20 ms needs 11 at 512 Hz.
+sets.shift_minimum_duration_ms = 20;
 
 % ---- Filters ----
 
