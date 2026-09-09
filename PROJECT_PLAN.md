@@ -175,12 +175,9 @@ The representation changes only MATLAB type, not the experimenter's encoded trig
 
 Approved on 2026-09-08 (CD-13): preserve the existing direction by adding signed delays to latency, with sample offsets calculated as `round(delay_ms * srate / 1000)`. Round the offset only, preserving any fractional part of the original latency. T1.2-B can proceed under this contract.
 
-Before final variable-shift integration, the researcher must still confirm:
+CD-14 and CD-15 additionally approve the existing range-divisor threshold (default 4), user-configured crossing duration in milliseconds, nearest-zero anchor with positive-side tie breaking, a participant-level median mode, and median fallback for missing crossings or omitted epochs with warnings. No valid detections, missing photodiode channels, and corrected events outside recording bounds cause errors. See CONCEPTUAL_DECISIONS.md for the complete contract.
 
-- how the photodiode threshold is defined relative to the processed signal;
-- whether the minimum sustained crossing is specified in samples or milliseconds;
-- whether a missing crossing aborts the participant, leaves the trigger unchanged, or follows another explicit policy;
-- how boundary epochs omitted by EEGLAB are reconciled with events in the continuous dataset.
+The researcher selected a default crossing duration of 20 ms. Use `ceil(duration_ms * srate / 1000)` for the positive duration's minimum sample count (11 samples at 512 Hz); retain CD-13's `round` for delay offsets. The listed Gate S decisions are resolved for implementation.
 
 Agents may audit these choices and build parameterized reference tests in parallel, but must not silently select scientific defaults.
 
@@ -226,6 +223,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.2-C: integrate and validate trigger shifting
 
+- **Status:** Ready for implementation. Both references have passed researcher-run MATLAB tests. CD-13 through CD-15 define the integration behavior, including the 20 ms default crossing duration. Extend reference coverage for median mode, fallback, and millisecond duration conversion before final EEGLAB acceptance.
 - **Objective:** Refactor `shift_triggers.m` around the validated onset-detection and latency-application behavior, correct per-trial indexing, make failure modes explicit, and update Stage 1/settings documentation without changing unapproved scientific choices.
 - **Relevant files/modules:** `shift_triggers.m`, `EMG_01_raw2set_shift_triggers.m`, trigger-shift comments in `EMG_00_settings.m`, Tasks T1.2-A/B tests, and any final EEGLAB integration test instructions.
 - **Dependencies:** Tasks T1.1-A and T1.1-B; Tasks T1.2-A and T1.2-B; all Gate S decisions. A representative photodiode dataset is needed for final EEGLAB validation.

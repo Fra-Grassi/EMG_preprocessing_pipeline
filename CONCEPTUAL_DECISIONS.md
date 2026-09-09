@@ -32,8 +32,10 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
 | CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Approved and test-only reference validated on 2026-09-08; production integration pending |
+| CD-14 | Configure the range-divisor threshold (default 4) and crossing duration in milliseconds (default 20 ms); use the nearest zero-time sample with positive-side tie breaking. | Approved; production integration pending |
+| CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Approved; production integration pending |
 
-CD-13 settles trigger-shift direction and rounding. Other trigger-shifting choices remain proposals until approved by the researcher. New approved decisions should receive the next available ID rather than rewriting an existing entry.
+CD-13 through CD-15 define the approved trigger-shifting behavior. The researcher selected 20 ms as the default crossing duration, replacing the former fixed 10-sample default.
 
 T1.2-A's photodiode onset-detection audit and test-only reference are integrated at `9ac2f7f` (Agent 3 source commit `2a624b4`); the researcher reported all reference tests passing on 2026-09-08. See [the audit](tests/trigger_shift_photodiode_audit.md) for current defects and unresolved scientific choices. Passing these parameterized tests does not approve a threshold, duration, zero-time anchor, failure policy, shift direction, or rounding rule. EEGLAB-based preprocessing remains part of the planned production workflow.
 
@@ -48,7 +50,27 @@ corrected_latency = original_latency + sample_offset;
 
 A positive photodiode delay means measured stimulus onset occurs after the recorded trigger, so the corrected trigger moves later. This preserves the existing intended direction. A negative signed delay moves an event earlier; zero leaves its latency unchanged. Only the offset is rounded; the original event latency is not rounded.
 
-The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-integer ties away from zero), replacing the current `ceil` convention. T1.2-B tests positive, negative, zero, fractional-sample, and half-sample offsets. The researcher reported the MATLAB reference suite passing on 2026-09-08 at source commit `accfbce`, integrated unchanged as `ca9f604`; see [the handoff](tests/trigger_latency_application_handoff.md). Its explicit mapping is supplied by the caller and does not establish EEGLAB epoch provenance. Production implementation and its MATLAB/EEGLAB validation remain pending. The threshold, sustained-crossing duration, zero-time anchor, missing-crossing policy, and boundary-epoch policy are still unresolved.
+The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-integer ties away from zero), replacing the current `ceil` convention. T1.2-B tests positive, negative, zero, fractional-sample, and half-sample offsets. The researcher reported the MATLAB reference suite passing on 2026-09-08 at source commit `accfbce`, integrated unchanged as `ca9f604`; see [the handoff](tests/trigger_latency_application_handoff.md). Its explicit mapping is supplied by the caller and does not establish EEGLAB epoch provenance. Production implementation and its MATLAB/EEGLAB validation remain pending. CD-14 and CD-15 below settle the additional detection and fallback policies, including the duration default.
+
+## Photodiode detection parameters (CD-14)
+
+Keep the existing EEGLAB signal preparation: continuous CleanLine processing, epoching, baseline subtraction, rectification, and second baseline subtraction. The threshold remains `range(signal) / divisor`, with user-configurable divisor defaulting to 4 and comparison `>=`. Estimate the range over the detection segment from the chosen zero-time anchor to epoch end; do not add the minimum signal amplitude to the threshold.
+
+Select the sample closest to zero, whether negative or positive; choose the positive sample when equally close. Return the first sample of the first qualifying sustained run, correcting the existing one-sample indexing error.
+
+Expose minimum crossing duration in milliseconds, defaulting to 20 ms. Convert using `max(1, ceil(minimum_duration_ms * srate / 1000))` consecutive samples, with a positive configured duration. This adopts sample-count duration (`n / srate`), matching the original run-length convention, rather than elapsed time between the first and last sample. The ceiling ensures the sample-count duration is at least the requested duration; it is distinct from CD-13's nearest-sample rounding of delay offsets. At 512 Hz, 20 ms corresponds to 10.24 samples and therefore requires 11 consecutive samples.
+
+## Median shifting and fallback (CD-15)
+
+Support three behaviors: fixed applies the configured signed delay to every selected target; variable applies each successfully detected trial delay and uses the median for unavailable estimates; median applies the median to every selected target.
+
+Compute the median in milliseconds, before sample rounding, from successfully detected delays within the current participant recording across configured target events. Missing crossings, flat/uninformative signals, and epochs omitted at recording boundaries or discontinuities do not contribute. Preserve explicit retained-epoch-to-original-event identity; never infer the association from matching counts alone.
+
+When an estimate is unavailable, use the median of the successful trials and warn with the affected event identities, reasons, applied median, and number of supporting detections. Keep measured delays and applied delays distinguishable in a separate diagnostic result, without adding event fields. One successful detection is sufficient, with the support count visible. No successful detections or a missing photodiode channel must produce a clear error. Reject corrected latencies outside the recording rather than clipping them.
+
+The median assumes a common typical delay across selected targets in that recording. Provide a delay-distribution diagnostic to help assess differences across targets or over the recording. Retain paired before/after photodiode diagnostics using the same available trials.
+
+These decisions extend the tested numerical references. T1.2-C must add tests for median mode, fallback, duration conversion, identity mapping, and failure cases, then undergo representative MATLAB/EEGLAB validation.
 
 ## Cross-agent knowledge protocol
 
