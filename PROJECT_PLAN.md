@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
 Last updated: 2026-09-09
-Latest researcher-tested trigger implementation: `9f4a6a1`, integrated as `5539508`; subsequent Stage 1 settings cleanup awaits a quick rerun.
+Latest researcher-tested state: `be6537d` plus the working-tree Stage 1 BIOSIG import and persistent-diagnostics edits; representative BDF run passed, reported on 2026-09-09.
 
 ## Purpose
 
@@ -223,7 +223,7 @@ Agents may audit these choices and build parameterized reference tests in parall
 
 #### Task T1.2-C: integrate and validate trigger shifting
 
-- **Status:** Implemented and integrated as `5539508` from Agent 3's `9f4a6a1`. On 2026-09-09 the researcher reported all synthetic tests passing and Stage 1 running successfully on actual data in both variable and median modes. The subsequent removal of the legacy-settings fallback awaits a quick current Stage 0 → Stage 1 rerun. Targeted real EEGLAB edge cases in the acceptance guide are not individually confirmed by this report.
+- **Status:** Implemented and integrated as `5539508` from Agent 3's `9f4a6a1`. On 2026-09-09 the researcher reported all synthetic tests passing and Stage 1 running successfully on actual data in both variable and median modes. The researcher confirmed the current Stage 0 → Stage 1 check of the legacy-settings fallback removal passed on 2026-09-09. Targeted real EEGLAB edge cases in the acceptance guide are not individually confirmed by this report.
 - **Objective:** Refactor `shift_triggers.m` around the validated onset-detection and latency-application behavior, correct per-trial indexing, make failure modes explicit, and update Stage 1/settings documentation without changing unapproved scientific choices.
 - **Relevant files/modules:** `shift_triggers.m`, `EMG_01_raw2set_shift_triggers.m`, trigger-shift comments in `EMG_00_settings.m`, Tasks T1.2-A/B tests, and any final EEGLAB integration test instructions.
 - **Dependencies:** Tasks T1.1-A and T1.1-B; Tasks T1.2-A and T1.2-B; all Gate S decisions. A representative photodiode dataset is needed for final EEGLAB validation.
@@ -306,7 +306,7 @@ The authoritative information flow is:
 ## Recommended execution order
 
 1. Tier 1.1: event normalization and matching — completed and validated.
-2. Tier 1.2: trigger shifting — integrated and representative runs validated; final settings-cleanup rerun pending.
+2. Tier 1.2: trigger shifting — integrated and representative runs validated; settings-cleanup rerun passed.
 3. Tier 1.3: settings validator, establishing entry-point contracts for later work.
 4. Tier 1.4: file selection and participant identity.
 5. Tier 1.5: rejection accounting and scientific audit.
@@ -316,7 +316,7 @@ Agent 0 may change this order when dependencies or researcher priorities change,
 
 ## Validation baseline
 
-On 2026-09-09 the researcher reported all synthetic suites passing and actual-data Stage 1 runs succeeding in both `variable` and `median` modes at `9f4a6a1` (integrated as `5539508`). Agent 0 reviewed the implementation and removed only the legacy-settings fallback afterward; configured runs still pass the same duration value. A quick Stage 0 → Stage 1 check of that final cleanup remains pending. This report does not establish completion of every targeted real-data case in `tests/trigger_shift_integration_acceptance.md`.
+On 2026-09-09 the researcher reported all synthetic suites passing and actual-data Stage 1 runs succeeding in both `variable` and `median` modes at `9f4a6a1` (integrated as `5539508`). Agent 0 reviewed the implementation and removed only the legacy-settings fallback afterward; configured runs still pass the same duration value. The researcher subsequently confirmed that quick Stage 0 → Stage 1 check passed without issues at `be6537d`. This report does not establish completion of every targeted real-data case in `tests/trigger_shift_integration_acceptance.md`.
 
 Task T1.2-B validation was reported by the researcher on 2026-09-08: the MATLAB latency-application test suite passed at Agent 3 commit `accfbce` (integrated unchanged as `ca9f604`). Coverage includes signed and zero delays, fractional and half-sample rounding, fractional original latencies, exact character matching, distinct explicitly mapped delays, metadata preservation, mapping/count errors, and diagnostic agreement. This validates the numerical reference; production `shift_triggers.m` and EEGLAB epoch-to-event mapping still require T1.2-C integration and validation.
 

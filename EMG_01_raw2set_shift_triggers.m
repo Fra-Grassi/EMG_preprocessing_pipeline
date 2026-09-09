@@ -33,7 +33,7 @@
 % Requirements:
 % - MATLAB
 % - EEGLab Toolbox
-% - BDF plugin (for trigger input cleaning)
+% - BIOSIG plugin (for BDF import and event extraction)
 % - Custom functions: shift_triggers(), fix_EEG_markers()
 %
 % Output:
@@ -70,11 +70,9 @@ for si = 1:length(file)
     
     %% 1.3.1 - Load raw file
 
-    % Load BDF file using 'pop_readbdf()' (BDF plugin)
-    % to read the trigger input as an additional channel
-    % This is then removed after removing the hyperscanning input
+    % Load BDF data and events using the BIOSIG plugin.
 
-    EMG = pop_readbdf(fullfile(sets.rawBDF_dir, file{si}));
+    EMG = pop_biosig(fullfile(sets.rawBDF_dir, file{si}));
 
     EMG_bkp = EMG;  % temporary, for debugging
     
@@ -117,7 +115,7 @@ for si = 1:length(file)
             'trigger_shift_diagnostics');
     end
     
-    pause(5); close all
+    % Keep trigger-shifting diagnostics open for inspection.
     
     %% 1.3.5 - Add file info
     

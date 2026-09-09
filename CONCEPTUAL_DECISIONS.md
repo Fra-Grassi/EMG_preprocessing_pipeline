@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
 Last updated: 2026-09-09
-Latest researcher-tested trigger implementation: `9f4a6a1`, integrated as `5539508`; subsequent Stage 1 settings cleanup awaits a quick rerun.
+Latest researcher-tested state: `be6537d` plus the working-tree Stage 1 BIOSIG import and persistent-diagnostics edits; representative BDF run passed, reported on 2026-09-09.
 
 ## Purpose and scope
 
@@ -34,7 +34,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Integrated; synthetic and representative-run validation reported |
 | CD-14 | Configure the range-divisor threshold (default 4) and crossing duration in milliseconds (default 20 ms); use the nearest zero-time sample with positive-side tie breaking. | Integrated; synthetic and representative-run validation reported |
 | CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Integrated; synthetic and representative-run validation reported |
-| CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Approved; Stage 1 fallback removed; quick rerun pending |
+| CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
 
 CD-13 through CD-15 define the approved trigger-shifting behavior. The researcher selected 20 ms as the default crossing duration, replacing the former fixed 10-sample default.
 
@@ -75,11 +75,13 @@ These decisions extend the tested numerical references. T1.2-C must add tests fo
 
 ## Integration evidence and wiki handoff (2026-09-09)
 
-CD-13 through CD-15 are implemented in `5539508` (Agent 3 source `9f4a6a1`). The researcher reported all synthetic tests passing and actual-data Stage 1 runs succeeding in variable and median modes. Earlier future-tense implementation notes above describe the decision history; this evidence updates their status. Targeted real EEGLAB edge cases are not individually confirmed. The final Stage 1 legacy-settings cleanup awaits a quick rerun.
+CD-13 through CD-15 are implemented in `5539508` (Agent 3 source `9f4a6a1`). The researcher reported all synthetic tests passing and actual-data Stage 1 runs succeeding in variable and median modes. Earlier future-tense implementation notes above describe the decision history; this evidence updates their status. Targeted real EEGLAB edge cases are not individually confirmed. The researcher confirmed the final Stage 1 legacy-settings cleanup passed its quick rerun at `be6537d` on 2026-09-09.
 
 Median shifting removes a common delay, preserving differences between trials. For example, clusters at 20 and 37 ms remain separated by 17 ms after any common shift: a median of 20 ms leaves residuals at 0 and 17 ms. The median can align either group or fall between groups depending on the distribution. Variable mode corrects each successful detection individually; fallback trials still receive the common median. The researcher observed this two-group pattern in representative data. Monitor-frame timing is a possible explanation, not a cause established by the plot alone. Wiki Curator should explain this distinction when drafting trigger-shifting documentation.
 
 ## Current-settings contract (CD-16)
+
+Stage 1 import and inspection update (2026-09-09): at the researcher's request, BDF loading uses BIOSIG's `pop_biosig` to import data and events before character normalization. BIOSIG is a required import plugin. Trigger-shifting diagnostic figures remain open after each participant for manual inspection; the automatic five-second pause and figure closure were removed. The researcher confirmed a representative BDF run passed with these changes on 2026-09-09, following the request to check import, events, saved SET, and the persistent diagnostic window.
 
 Users define their own settings using the current Stage 0 before running later stages. Settings files from previous development runs are not a supported compatibility target. Do not silently supply missing settings fields for legacy files. Stage 1 passes `sets.shift_minimum_duration_ms` directly. Optional defaults in standalone function calls remain part of their documented interfaces; they are distinct from migrating saved pipeline settings.
 
