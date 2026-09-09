@@ -115,7 +115,7 @@ Stage 1 now imports BDF data and events with BIOSIG's `pop_biosig`, making BIOSI
 
 The researcher reported all synthetic trigger-shifting suites passing and successful actual-data Stage 1 runs in both `'variable'` and `'median'` modes at Agent 3 commit `9f4a6a1`, integrated as `5539508`. These suites cover the numerical direction and rounding, exact target matching, per-event identity, median-before-rounding behavior, fallback statuses and warnings, duration conversion, zero-time anchoring, recording-boundary and discontinuity handling, missing-channel and no-detection errors, out-of-bounds errors, and diagnostic agreement.
 
-The researcher then confirmed a quick Stage 0 → Stage 1 run after the direct current-settings cleanup at `be6537d`. After the BIOSIG import and persistent-figure changes were committed as `c088082`, a representative BDF Stage 1 run also passed, including import, event handling, saved SET output, and the persistent diagnostic window.
+The researcher then confirmed a quick Stage 0 → Stage 1 run after the direct current-settings cleanup at `be6537d`. A representative BDF Stage 1 run also passed with the BIOSIG import and persistent-figure changes, including import, event handling, saved SET output, and the persistent diagnostic window. Those tested changes were subsequently committed as `c088082`.
 
 The production synthetic suite replaces five EEGLAB operations with controlled test versions so it can verify integration arithmetic and mapping deterministically. The reported actual-data runs add representative end-to-end evidence, but they do not establish that every specialized real EEGLAB edge case listed in the acceptance guide was individually tested.
 
