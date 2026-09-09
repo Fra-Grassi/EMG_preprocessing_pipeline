@@ -23,10 +23,11 @@
 %   9. Trial averaging
 %
 % Usage:
-% 1. Do not modify Section 0.1 unless different output directory names are required
-% 2. Toggle processing steps in Section 0.2 (1 = perform, 0 = skip).
-% 3. Specify processing steps parameters in Section 0.2.
-% 4. Run script to save parameters as MATLAB struct.
+% 1. Edit only Section 0.2: external paths, processing toggles (1/0), and parameters.
+% 2. Section 0.1 automatically sets up internal paths and creates missing output folders.
+% 3. Section 0.3 automatically validates settings; Section 0.4 saves them.
+% 4. Run the whole script, or Sections 0.1--0.4 once in order, before later stages.
+%    Keep this script active in the MATLAB Editor. Rerun after changing settings.
 %
 % Output:
 % - A MATLAB struct 'preprocessing_settings.mat' to be used in following.
@@ -46,6 +47,7 @@ clearvars
 % The project folder is inferred from the active script in the MATLAB Editor.
 % Project-internal paths are then defined relative to that folder.
 sets.project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
+addpath(sets.project_dir)  % shared functions remain available during section execution
 
 sets.rawSET_dir = fullfile(sets.project_dir, 'raw');  % path to raw SET data folder
 sets.processed_dir = fullfile(sets.project_dir, 'preprocessed');  % path to processed data folder
@@ -61,6 +63,11 @@ for dir_idx = 1:length(output_dirs)
     end
 end
 
+% The resources folder must already exist because it contains required files.
+if ~isfolder(sets.utilities_dir)
+    error('utilities_dir: Resources folder not found: %s. Check Stage 0, Section 0.1.', sets.utilities_dir);
+end
+
 %% 0.2 - Parameters
 
 % ---- Study Name ----
@@ -71,11 +78,6 @@ sets.study_name = 'hyper_lol_2';
 % Specify the external paths to the raw BDF data and EEGLab as strings.
 sets.rawBDF_dir = 'N:\ANAP\01_data\HyperLOL2\Raw Data\EMG\merged\';  % path to raw BDF data folder
 sets.eeglab_dir = 'N:\ANAP\02_home\Francesco\Matlab plugins\eeglab2025.1.0\';  % path to EEGLab toolbox 
-
-% The resources folder must already exist because it contains required files.
-if ~isfolder(sets.utilities_dir)
-    error('Resources folder not found: %s', sets.utilities_dir);
-end
 
 % ---- Channel layout ----
 % String defining the channel layout used during the recording.
@@ -110,6 +112,8 @@ sets.condition_names = {'unconstrained', 'suppressed'};
 %                                           where 'channel_1', 'channel_2', etc. belong to different muscles)
 % NOTE: the difference here is that BioSemi data requires wihtin-muscle re-referencing (i.e., subtracting one muscle
 % channel from the other).
+% Current Stage 2 requires at least two rows for bipolar subtraction. A single-row
+% array selects separate channels, so a one-muscle bipolar pair is not supported.
 sets.emg_channel_numbers = [3, 4;...  % CS
     5, 6;...  % OO
     7, 8];  % ZM
@@ -289,31 +293,9 @@ sets.do_save_rejected_trial_rows = 1;
 % Specify file name for feature amplitudes, as string, with extension (e.g., 'feature-amplitudes.csv').
 sets.fname_feature_amplitudes = 'feature-amplitudes.csv';
 
-%% 0.3 - Check invalid setting combinations
+%% 0.3 - Validate settings (automatic)
 
-% Mean absolute value requires full-wave rectification before baseline correction
-if strcmp(sets.feature_extraction_method, 'mav') && ...
-        ~(sets.do_rectifying && strcmp(sets.rectify_method, 'abs'))
-    error(['MAV extraction requires full-wave rectification. ', ...
-        'Set do_rectifying to 1 and rectify_method to ''abs''.']);
-end
-
-% Within-muscle and within-subject standardization define alternative reference distributions
-if sets.do_standardization_muscle && sets.do_standardization_subject
-    error(['Within-muscle and within-subject standardization cannot both be enabled. ', ...
-        'Select one reference distribution or disable both standardization options.']);
-end
-
-% Raise error if rejected trial info saving is requested while trial averaging is enabled
-if sets.do_save_rejected_trial_rows && sets.do_trial_averaging
-    error('Cannot retain rejected trial info if trial averaging is enabled!');
-end
-
-% Raise error if rejected trial info saving is requested but no artefact rejection method is enabled
-if sets.do_save_rejected_trial_rows && ~(sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual)
-    error('Cannot retain rejected trial info if no artefact rejection is performed!')
-end
-
+validate_settings(sets, 'stage0');
 
 %% 0.4 - Save settings
 

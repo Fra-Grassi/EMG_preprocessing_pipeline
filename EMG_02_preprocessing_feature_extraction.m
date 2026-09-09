@@ -54,6 +54,10 @@ project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
 settings_file = fullfile(project_dir, 'resources', 'preprocessing_settings.mat');
 load(settings_file, 'sets');
 
+% Validate once before processing, also when running subsequent sections individually.
+addpath(project_dir)  % shared validator and pipeline functions
+validate_settings(sets, 'stage2');
+
 addpath(sets.eeglab_dir)  % EEGLab
 
 eeglab; close all;  % start EEGLab and close popup windows
@@ -180,9 +184,6 @@ for si = 1:length(file)
             % if lowpass, set higher edge to specified cutoff and no lower edge
             low_cutoff = [];
             high_cutoff = sets.filter_cutoff_main;    
-        else
-            % Raise an error if the value is not valid
-            error('Invalid value for filter type. It must be ''bandpass'', ''highpass'', or ''lowpass''. See p00_settings.m ''Filters'' section.');
         end
         
         % Apply filter depending on type
@@ -390,9 +391,6 @@ for si = 1:length(file)
             EMG.data = EMG.data - baseline_amplitudes;
         elseif strcmp(baseline_method, 'division')
             EMG.data = EMG.data ./ baseline_amplitudes;
-        else
-            error('apply_mav_baseline_correction:InvalidMethod', ...
-                'Method must be ''subtraction'' or ''division''.');
         end
 
         fprintf('\nBaseline correction (method %s) COMPLETE\n\n', sets.baseline_correction_method);
@@ -443,18 +441,9 @@ for si = 1:length(file)
 
     end
 
-    if ~strcmp(sets.feature_extraction_method, 'mav')
-        error('Invalid feature extraction method. Currently supported value: ''mav''.');
-    end
-
     % EMG.data is already rectified. Extract ordinary means without applying abs again.
     epoch_end_ms = sets.epoch_length(2) * 1000;
     n_post_bins = epoch_end_ms / sets.feature_extraction_bin_dur;
-
-    if abs(n_post_bins - round(n_post_bins)) > 1e-10
-        error('extract_binned_mav:IncompleteBin', ...
-            'The post-stimulus epoch duration must be a multiple of the bin duration.');
-    end
 
     n_post_bins = round(n_post_bins);
     bin_edges = [-sets.feature_extraction_bin_dur, ...
@@ -557,8 +546,6 @@ for si = 1:length(file)
         unstandardized_feature_suffix = 'MAV_difference';
     elseif strcmp(sets.baseline_correction_method, 'division')
         unstandardized_feature_suffix = 'MAV_ratio';
-    else
-        error('Invalid baseline correction method. It must be ''subtraction'' or ''division''.');
     end
     
     %% 2.4.14 - Trial average and store participant data

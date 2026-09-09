@@ -49,6 +49,10 @@ project_dir = fileparts(matlab.desktop.editor.getActiveFilename);
 settings_file = fullfile(project_dir, 'resources', 'preprocessing_settings.mat');
 load(settings_file, 'sets');
 
+% Validate once before processing, also when running subsequent sections individually.
+addpath(project_dir)  % shared validator and pipeline functions
+validate_settings(sets, 'stage1');
+
 addpath(sets.eeglab_dir)  % EEGLab
 
 eeglab; close all;  % start EEGLab and close popup windows
@@ -91,9 +95,6 @@ for si = 1:length(file)
         EMG = pop_chanedit(EMG, 'lookup', fullfile(sets.utilities_dir, 'chanloc_biosemi_64.elp'));
     elseif strcmp(sets.recording_layout, 'EEG_128')
         EMG = pop_chanedit(EMG, 'lookup', fullfile(sets.utilities_dir, 'chanloc_biosemi_128.ced'));
-    else
-        % Raise an error if the value is not valid
-        error('Invalid value for the recording layout. It must be ''EMG'', ''EEG_64'', or ''EEG_128''.');
     end
     
     %% 1.3.4 - Shift triggers
