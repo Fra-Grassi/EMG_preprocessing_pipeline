@@ -20,7 +20,7 @@ The contract is exact:
 
 For example, `'001'` remains `'001'`, and a textual event such as `'boundary'` remains `'boundary'`. The pipeline does not strip a prefix, normalize spaces, remove leading zeros, or map a text name to a number. It also adds no field containing the original value, because CD-11 explicitly chose not to add an original-value audit field.
 
-This conversion is performed by [`fix_EEG_markers.m`](../fix_EEG_markers.m) during Stage 1 after BDF import. Numeric values use their character representation, MATLAB string values are converted to character vectors, and existing character content is left unchanged. Other event fields are not modified by this function.
+This conversion is performed by [`fix_EEG_markers.m`](../fix_EEG_markers.m) during Stage 1 after BIOSIG imports the BDF data and events. Numeric values use their character representation, MATLAB string values are converted to character vectors, and existing character content is left unchanged. Other event fields are not modified by this function.
 
 ## Configured condition triggers
 
@@ -51,11 +51,11 @@ Every Stage 2 section emits a completion message after its work. A user running 
 - Expect exact comparison: visually similar but textually different codes do not match.
 - Treat copied condition events as full event copies whose `type` alone is replaced with the condition name.
 - When running Stage 2 by sections, execute each section once and use the completion output to track progress.
-- Do not treat trigger shifting as finalized. Its scientific and implementation contract is still pending and is deliberately outside this page.
+- Trigger shifting uses the same exact character codes and is documented separately in [Trigger Shifting and Diagnostics](Trigger-Shifting-and-Diagnostics.md).
 
 ## Traceability
 
 - **Decisions:** [CD-11 and CD-12](../CONCEPTUAL_DECISIONS.md#event-representation-contract).
 - **Production files and sections:** [`fix_EEG_markers.m`](../fix_EEG_markers.m); [`EMG_00_settings.m`, Conditions and Triggers](../EMG_00_settings.m); [`EMG_01_raw2set_shift_triggers.m`, Section 1.3.2](../EMG_01_raw2set_shift_triggers.m); [`EMG_02_preprocessing_feature_extraction.m`, Section 2.4.2](../EMG_02_preprocessing_feature_extraction.m).
 - **Tests and recorded validation:** [`test_event_marker_normalization.m`](../tests/test_event_marker_normalization.m) verifies conversions, preserved encoded content, unchanged unrelated fields, and the completion message; [PROJECT_PLAN.md, Tier 1.1 and validation baseline](../PROJECT_PLAN.md#11-normalize-event-types-and-condition-matching) records isolated character-trigger checks and representative-participant integration validation.
-- **Current implementation status:** CD-11 and CD-12 are implemented and validated. Trigger shifting has no approved decision ID and is not documented as settled.
+- **Current implementation status:** CD-11 and CD-12 are implemented and validated. The implemented trigger-shifting contract builds on this exact representation under CD-13 through CD-16.

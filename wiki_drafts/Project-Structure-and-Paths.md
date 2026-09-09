@@ -18,7 +18,7 @@ Stage 0 assigns the following repository-internal locations:
 
 | Directory | Role |
 | --- | --- |
-| `raw/` | Raw EEGLAB SET datasets created by Stage 1 from selected acquisition files. |
+| `raw/` | Raw EEGLAB SET datasets created by Stage 1 and, when trigger shifting is enabled, participant-level trigger diagnostics MAT files. |
 | `preprocessed/` | Stage 2 SET checkpoints and the optional trial-rejection statistics table. |
 | `extracted_amplitudes/` | Cumulative feature-amplitude tables written by Stage 2. |
 | `resources/` | Tracked channel-location resources plus generated settings snapshots. |
@@ -36,7 +36,7 @@ Two locations are deliberately not inferred as repository-owned directories:
 
 Both are user-configured in Stage 0. Raw acquisition data and a toolbox installation are machine- or study-environment resources, not properties of the repository. The wiki therefore describes their roles without embedding any local filesystem value.
 
-Stages 1 and 2 load the saved settings from `resources/`, then use `fullfile` for settings files, selected input patterns, channel-location resources, and outputs. Stage 1 saves imported datasets under `raw/`. Stage 2 reads from `raw/`, saves preprocessed SET checkpoints and rejection statistics under `preprocessed/`, and writes feature tables under `extracted_amplitudes/`.
+Stages 1 and 2 load the saved settings from `resources/`, then use `fullfile` for settings files, selected input patterns, channel-location resources, and outputs. Stage 1 saves imported datasets under `raw/`; when trigger shifting is enabled, it saves a diagnostics MAT file beside each corresponding SET dataset. Stage 2 reads from `raw/`, saves preprocessed SET checkpoints and rejection statistics under `preprocessed/`, and writes feature tables under `extracted_amplitudes/`.
 
 ## Complete scripts and individual sections
 
@@ -56,7 +56,7 @@ This page explains that execution contract; it is not a run guide. In particular
 
 ## Traceability
 
-- **Decision:** [CD-01](../CONCEPTUAL_DECISIONS.md#project-path-resolution-and-section-execution); section execution also follows [CD-12](../CONCEPTUAL_DECISIONS.md#event-representation-contract).
+- **Decisions:** [CD-01](../CONCEPTUAL_DECISIONS.md#project-path-resolution-and-section-execution); section execution also follows [CD-12](../CONCEPTUAL_DECISIONS.md#event-representation-contract), and separate trigger diagnostics follow [CD-15](../CONCEPTUAL_DECISIONS.md#median-shifting-and-fallback-cd-15).
 - **Production files and sections:** [`EMG_00_settings.m`, Sections 0.1 and 0.4](../EMG_00_settings.m); [`EMG_01_raw2set_shift_triggers.m`, Sections 1.1–1.3](../EMG_01_raw2set_shift_triggers.m); [`EMG_02_preprocessing_feature_extraction.m`, Sections 2.1–2.4.15](../EMG_02_preprocessing_feature_extraction.m).
 - **Tests and recorded validation:** [`compare_mav_outputs.m`](../tests/compare_mav_outputs.m) supports complete-script versus section-output comparison; [PROJECT_PLAN.md, Tier 0.4 and validation baseline](../PROJECT_PLAN.md#04-establish-reproducible-project-paths) records the implemented path behavior and validated execution comparisons.
-- **Current implementation status:** CD-01 is implemented and validated. The reusable entry-point settings validator in CD-10 is an approved future direction and is not described here as present.
+- **Current implementation status:** CD-01 is implemented and validated, and CD-15's separate trigger-diagnostics output is integrated. The reusable entry-point settings validator in CD-10 is an approved future direction and is not described here as present.
