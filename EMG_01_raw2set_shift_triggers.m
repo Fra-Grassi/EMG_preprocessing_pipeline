@@ -106,16 +106,11 @@ for si = 1:length(file)
         if isempty(shift_markers)
             shift_markers = sets.condition_triggers;
         end
-        % Older saved settings use the approved 20 ms default.
-        minimum_duration_ms = 20;
-        if isfield(sets, 'shift_minimum_duration_ms')
-            minimum_duration_ms = sets.shift_minimum_duration_ms;
-        end
         [EMG, trigger_shift_diagnostics] = shift_triggers(EMG, ...
             shift_markers, ...
             sets.shift_method, ...
             sets.shift_window, ...
-            sets.shift_threshold, minimum_duration_ms);
+            sets.shift_threshold, sets.shift_minimum_duration_ms);
         % Separate participant-level audit; no new EEG event fields.
         [~, input_stem] = fileparts(file{si});
         save(fullfile(sets.rawSET_dir, [input_stem '_trigger_shift_diagnostics.mat']), ...

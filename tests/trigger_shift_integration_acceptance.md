@@ -30,8 +30,8 @@ types distinguished in the latter. No condition-specific median or outlier
 exclusion is introduced.
 
 Stage 0 adds `shift_minimum_duration_ms = 20`. Stage 1 resolves empty markers to
-`condition_triggers`, uses the default for older saved settings without this
-field, and saves `<input_stem>_trigger_shift_diagnostics.mat` beside the raw SET
+`condition_triggers`, reads `sets.shift_minimum_duration_ms` from current Stage 0
+settings, and saves `<input_stem>_trigger_shift_diagnostics.mat` beside the raw SET
 output. Existing files with that diagnostic name are overwritten on rerun,
 consistent with Stage 1 output behavior. The MAT file contains processed
 photodiode waveforms as well as the audit and can be sizable.
