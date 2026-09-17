@@ -65,9 +65,18 @@ eeglab; close all;  % start EEGLab and close popup windows
 %% 2.2 - Select input data
 
 % Select one or multiple raw SET datasets to process
-% (datasets created in 'EMG_01_raw2set_shift_triggers.m')
+% (datasets created in 'EMG_01_raw2set_shift_triggers.m').
+% Stage 0 sets the initial folder; load from the folder returned by the dialog.
 
 [file, thissubjectpath] = uigetfile(fullfile(sets.rawSET_dir, '*_raw.set'), 'MultiSelect', 'on');  % show gui to select files
+
+% Cancel exits this run before processing. An empty selection also keeps the
+% participant loop empty if it is subsequently run as an Editor section.
+if isequal(file, 0)
+    file = {};
+    fprintf('\nStage 2 cancelled; no files selected.\n');
+    return
+end
 
 % Ensure the file names are stored as a cell array even when only one file is selected
 if ischar(file)
@@ -100,12 +109,12 @@ for si = 1:length(file)
     
     %% 2.4.1 - Load dataset
     
-    EMG = pop_loadset('filename', file{si}, 'filepath', sets.rawSET_dir);
+    EMG = pop_loadset('filename', file{si}, 'filepath', thissubjectpath);
     EMG_bkp = EMG;  % temporary for debugging
     
     fprintf('\nDataset loading COMPLETE\n\n');
 
-    % Extract Subject ID
+    % Use Stage 1's saved text ID, including leading zeros; do not reparse the SET filename.
     subj_ID = EMG.subject;
 
     %% 2.4.2 - Add events with condition names

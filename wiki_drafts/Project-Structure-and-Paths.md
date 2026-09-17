@@ -36,7 +36,17 @@ Two locations are deliberately not inferred as repository-owned directories:
 
 Both are user-configured in Stage 0. Raw acquisition data and a toolbox installation are machine- or study-environment resources, not properties of the repository. The wiki therefore describes their roles without embedding any local filesystem value.
 
-Stages 1 and 2 load the saved settings from `resources/`, then use `fullfile` for settings files, selected input patterns, channel-location resources, and outputs. Stage 1 saves imported datasets under `raw/`; when trigger shifting is enabled, it saves a diagnostics MAT file beside each corresponding SET dataset. Stage 2 reads from `raw/`, saves preprocessed SET checkpoints and rejection statistics under `preprocessed/`, and writes feature tables under `extracted_amplitudes/`.
+Stages 1 and 2 load the saved settings from `resources/`, then use `fullfile` for settings files, selected input patterns, channel-location resources, and outputs. Stage 1 saves imported datasets under `raw/`; when trigger shifting is enabled, it saves a diagnostics MAT file beside each corresponding SET dataset. Stage 2 initially offers `raw/` in its selector, saves preprocessed SET checkpoints and rejection statistics under `preprocessed/`, and writes feature tables under `extracted_amplitudes/`.
+
+## Selecting files and adapting participant names
+
+Use the current Stage 0 as the main place to configure paths, processing choices, and output suffixes (CD-16). In Stages 1 and 2, the configured input folder is the file dialog's starting location. You can browse elsewhere: each stage loads from the folder returned by the dialog. Cancel stops the current run before any participant is processed or saved. When running Editor sections, stop after cancellation and select files again before continuing; the cancelled selection is emptied so the participant loop has no files to process.
+
+For this project, name raw files `001.bdf`, `002.bdf`, and so on. Stage 1 Section 1.3.5 uses `fileparts` to take the filename without its extension, so `001.bdf` sets `EMG.subject` to character `'001'`. The configured `sets.fname_raw_data` suffix is then appended to form the SET name. Stage 2 uses the saved `EMG.subject`, preserving the leading zeros even if the SET file is renamed. Filename correctness is the user's responsibility; the stages do not check for empty or duplicate participant IDs.
+
+For another project's naming convention, adapt the ID extraction line in Stage 1 Section 1.3.5 and keep the result as text. Configure the output suffix in Stage 0; if it differs from `_raw`, also adapt Stage 2 Section 2.2's `*_raw.set` selection filter. There is no additional Stage 0 naming option or generic filename parser.
+
+This Tier 1.4 behavior follows the researcher's explicit task approval and CD-02's text-identity rule. The shared decision register and plan await Agent 0's update; MATLAB validation is pending in the [file-selection acceptance guide](../tests/file_selection_identity_handoff.md).
 
 ## Complete scripts and individual sections
 

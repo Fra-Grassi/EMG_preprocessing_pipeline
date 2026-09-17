@@ -59,8 +59,16 @@ eeglab; close all;  % start EEGLab and close popup windows
 
 %% 1.2 - Select raw files
 
-% Show gui to select files based on specified format
+% Stage 0 sets the initial folder; load from the folder returned by the dialog.
 [file, thissubjectpath] = uigetfile(fullfile(sets.rawBDF_dir, '*.bdf'), 'MultiSelect', 'on');
+
+% Cancel exits this run before processing. An empty selection also keeps the
+% participant loop empty if it is subsequently run as an Editor section.
+if isequal(file, 0)
+    file = {};
+    fprintf('\nStage 1 cancelled; no files selected.\n');
+    return
+end
 
 % Ensure the file names are stored as a cell array even when only one file is selected
 if ischar(file)
@@ -76,7 +84,7 @@ for si = 1:length(file)
 
     % Load BDF data and events using the BIOSIG plugin.
 
-    EMG = pop_biosig(fullfile(sets.rawBDF_dir, file{si}));
+    EMG = pop_biosig(fullfile(thissubjectpath, file{si}));
 
     EMG_bkp = EMG;  % temporary, for debugging
     
@@ -120,11 +128,13 @@ for si = 1:length(file)
     
     %% 1.3.5 - Add file info
     
-    % Extract subject number from file name
-    sub_id = erase(file{si}, '_raw.bdf');
+    % The filename stem is the participant ID: 001.bdf -> character '001'.
+    % For another project's naming convention, adapt this line (keep the ID as text).
+    % Configure paths and the SET suffix in Stage 0; filename correctness is the user's responsibility.
+    [~, subj_ID] = fileparts(file{si});
 
-    EMG.subject = sub_id;
-    EMG.setname = [sub_id, sets.fname_raw_data];
+    EMG.subject = subj_ID;
+    EMG.setname = [subj_ID, sets.fname_raw_data];
     EMG.filename = [EMG.setname, '.set'];
     EMG.filepath = sets.rawSET_dir;
     
@@ -132,6 +142,6 @@ for si = 1:length(file)
     
     EMG = pop_saveset(EMG, 'filename', EMG.filename, 'filepath', EMG.filepath);
     
-    fprintf(['\nSubject ', sub_id, ' conversion COMPLETE\n\n']);
+    fprintf(['\nSubject ', subj_ID, ' conversion COMPLETE\n\n']);
     
 end
