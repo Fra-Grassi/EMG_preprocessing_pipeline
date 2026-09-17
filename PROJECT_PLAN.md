@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-09
-Latest researcher-tested state: `be6537d` plus the working-tree Stage 1 BIOSIG import and persistent-diagnostics edits; representative BDF run passed, reported on 2026-09-09.
+Last updated: 2026-09-17
+Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
 
 ## Purpose
 
@@ -115,12 +115,14 @@ Scientific decision: the intended photodiode threshold and minimum-duration rule
 
 ### 1.3 Add one reusable settings validator
 
-- [ ] Validate required fields, value types, allowed strings, toggle dependencies, and vector dimensions.
-- [ ] Validate condition trigger/name cardinality and EMG channel-number/name cardinality.
-- [ ] Validate epoch, baseline, bin, filter, downsampling, and Nyquist relationships without changing their scientific values.
-- [ ] Validate required input/resource/toolbox paths while creating only designated output directories.
-- [ ] Run the validator from every stage so section-level execution does not depend on Stage 0 having just run successfully.
-- [ ] Keep errors concise and actionable; avoid redundant checks inside participant loops.
+- [x] Validate required fields, value types, allowed strings, toggle dependencies, and vector dimensions.
+- [x] Validate condition trigger/name cardinality and EMG channel-number/name cardinality.
+- [x] Validate settings-only epoch, baseline, bin, filter, and downsampling relationships without changing scientific values. Recording-specific Nyquist checks remain outside this validator's scope.
+- [x] Validate required input/resource/toolbox paths; designated output-directory creation stays in Stage 0, outside the read-only validator.
+- [x] Run the validator once at every stage entry, including the initial section in section-level execution.
+- [x] Keep errors concise and actionable; avoid redundant checks inside participant loops.
+
+Completed: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`. The researcher reported all checks in `tests/settings_validator_handoff.md` passing on 2026-09-09, including synthetic tests and the stage/section acceptance sequence. The existing single-muscle bipolar limitation is explicitly rejected and remains a Tier 2.1 follow-up.
 
 Likely files: a new validator function plus Stages 0–2 and validator tests.
 Coordination note: this task overlaps most entry-point scripts and should be integrated before parallel tasks modify them.
@@ -263,6 +265,8 @@ The authoritative information flow is:
 
 ### 2.1 Validate channel selection and re-referencing
 
+- [ ] Resolve the existing single-muscle bipolar ambiguity: Stage 2 treats a single-row channel array as independent channels. The validator rejects a one-name `[3 4]` configuration rather than changing its interpretation. An explicit rereferencing setting is a proposal, not yet an approved interface.
+
 - [ ] Make the recording-system/channel-layout rule unambiguous, including the one-muscle BioSemi case.
 - [ ] Validate channel indices before selecting or subtracting signals.
 - [ ] Confirm that `chanlocs`, channel labels, and `nbchan` remain consistent after selection.
@@ -307,7 +311,7 @@ The authoritative information flow is:
 
 1. Tier 1.1: event normalization and matching — completed and validated.
 2. Tier 1.2: trigger shifting — integrated and representative runs validated; settings-cleanup rerun passed.
-3. Tier 1.3: settings validator, establishing entry-point contracts for later work.
+3. Tier 1.3: settings validator — completed, integrated, and researcher-validated.
 4. Tier 1.4: file selection and participant identity.
 5. Tier 1.5: rejection accounting and scientific audit.
 6. Tier 2 work in small, independently reviewed units.
@@ -315,6 +319,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-09 the researcher reported all Agent 4 checks passing at `610de9a`, integrated unchanged as `47a8d2e`. The handoff covers synthetic validator tests, MATLAB code checks, current Stage 0–2 full-script/section runs, and Stage 2 independence from the raw BDF path. These are researcher-reported results; MATLAB was not run on the coordinator machine.
 
 On 2026-09-09 the researcher reported all synthetic suites passing and actual-data Stage 1 runs succeeding in both `variable` and `median` modes at `9f4a6a1` (integrated as `5539508`). Agent 0 reviewed the implementation and removed only the legacy-settings fallback afterward; configured runs still pass the same duration value. The researcher subsequently confirmed that quick Stage 0 → Stage 1 check passed without issues at `be6537d`. This report does not establish completion of every targeted real-data case in `tests/trigger_shift_integration_acceptance.md`.
 

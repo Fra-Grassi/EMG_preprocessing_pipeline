@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-09-09
-Latest researcher-tested state: `be6537d` plus the working-tree Stage 1 BIOSIG import and persistent-diagnostics edits; representative BDF run passed, reported on 2026-09-09.
+Last updated: 2026-09-17
+Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
 
 ## Purpose and scope
 
@@ -28,7 +28,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-07 | Treat muscle-wise and subject-pooled z scoring as alternatives, use sample SD, exclude the pre-bin from estimation, and transform every bin. | Implemented and validated |
 | CD-08 | Keep a wide output with adjacent unstandardized and standardized columns per muscle and method-specific names. | Implemented and validated |
 | CD-09 | Keep Stage 2 production calculations inline after helper-backed validation; retain helpers only as test references. | Implemented and validated |
-| CD-10 | Add one entry-point settings validator later rather than accumulating redundant checks inside participant loops. | Approved direction; not implemented |
+| CD-10 | Use one stage-specific entry-point settings validator rather than accumulating redundant checks inside participant loops. | Implemented; researcher checks passed on 2026-09-09 |
 | CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
 | CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Integrated; synthetic and representative-run validation reported |
@@ -326,9 +326,11 @@ All deterministic tests passed in MATLAB R2024b. The helper-backed and final inl
 
 ## Settings validation philosophy
 
-The current code checks only known incompatible settings combinations in Stage 0. This keeps Stage 2 readable, but it means a user who edits a saved settings structure or runs a later stage independently can encounter a less informative downstream error.
+`validate_settings(sets, stage)` runs once at each stage's entry. Stage 0 checks the complete current configuration; later stages check their own requirements. Stage 2 does not require access to the original BDF folder. Optional parameter values are checked when used, while required fields reflect actual downstream access. No settings are repaired or migrated, and the validator creates no files or folders.
 
-The agreed future direction is one reusable settings validator invoked by every stage. Validation should happen near stage entry, not repeatedly inside participant loops. It should catch structural or configuration errors while avoiding speculative checks for scientifically possible but poor-quality data.
+Section 0.2 contains assignments and explanatory comments only. Resources-folder checking and output-folder creation are in Section 0.1; Section 0.3 calls the validator. Settings-only checks cover supported options, dimensions, combinations, paths and timing relationships. Data-dependent checks remain in processing code, and standalone trigger-shifting checks remain available. Section execution starts with the stage's entry section and runs each section once.
+
+Agent 4 commit `610de9a` was integrated unchanged as `47a8d2e`; the researcher reported all handoff checks passing on 2026-09-09. The validator preserves and explains the existing restriction that a single-row channel array selects independent channels, so one bipolar muscle is not yet supported. Resolving that interface remains Tier 2.1 work.
 
 ## Decisions intentionally deferred
 

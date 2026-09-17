@@ -33,7 +33,7 @@ The photodiode modes also use:
 - `sets.shift_threshold`, the range divisor, currently configured with a default of 4;
 - `sets.shift_minimum_duration_ms`, the required sustained-crossing duration, currently configured with a default of 20 ms.
 
-Stage 1 requires settings saved by the current Stage 0 and reads `sets.shift_minimum_duration_ms` directly. Saved settings from earlier development versions are not a supported compatibility interface. The standalone `shift_triggers` function still documents optional defaults for omitted function arguments; those defaults do not migrate an older pipeline settings file. The broader reusable settings validator described by CD-10 remains future work.
+Stage 1 requires settings saved by the current Stage 0 and reads `sets.shift_minimum_duration_ms` directly. Saved settings from earlier development versions are not a supported compatibility interface. The standalone `shift_triggers` function still documents optional defaults for omitted function arguments; those defaults do not migrate an older pipeline settings file. The shared settings validator described by CD-10 checks stage-specific requirements once at stage entry; standalone trigger checks remain in place.
 
 ## How photodiode delays are detected
 
