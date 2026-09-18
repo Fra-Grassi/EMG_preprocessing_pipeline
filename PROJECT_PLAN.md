@@ -1,6 +1,6 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
 
 ## Purpose
@@ -129,11 +129,12 @@ Coordination note: this task overlaps most entry-point scripts and should be int
 
 ### 1.4 Harden file selection and participant identity
 
-- [ ] Handle cancellation from each `uigetfile` call without entering a processing loop.
-- [ ] Load files from the directory actually returned by the selector, or deliberately constrain selection to the configured directory and document that rule.
-- [ ] Derive participant IDs from filenames with an explicit, tested naming convention rather than relying only on removal of `_raw.bdf`.
-- [ ] Check for empty or duplicate participant IDs within a selected batch before preprocessing begins.
-- [ ] Preserve prefixes and leading zeros by treating participant IDs as strings throughout.
+- [x] Handle cancellation from each `uigetfile` call without entering a processing loop.
+- [x] Load files from the directory actually returned by the selector.
+- [x] Derive participant IDs from raw filename stems with `fileparts`, preserving text such as `'001'`.
+- [x] Preserve prefixes and leading zeros through `EMG.subject` and feature-table string keys.
+
+The researcher explicitly excluded empty-ID and duplicate-ID checks; filename correctness is the user's responsibility. For another study's naming convention, adapt the Stage 1 extraction line as described in the wiki. Agent 5 commits `558f803` and `d7ab337` were integrated as `f9e77d7` and `e5333e8`; the researcher reported all MATLAB tests and acceptance checks passing on 2026-09-18, including batch selection and processing.
 
 Likely files: Stage 1, Stage 2, new tests where EEGLAB-independent logic can be isolated.
 
@@ -312,13 +313,15 @@ The authoritative information flow is:
 1. Tier 1.1: event normalization and matching — completed and validated.
 2. Tier 1.2: trigger shifting — integrated and representative runs validated; settings-cleanup rerun passed.
 3. Tier 1.3: settings validator — completed, integrated, and researcher-validated.
-4. Tier 1.4: file selection and participant identity.
+4. Tier 1.4: file selection and participant identity — completed and researcher-validated.
 5. Tier 1.5: rejection accounting and scientific audit.
 6. Tier 2 work in small, independently reviewed units.
 
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-18 the researcher reported all Tier 1.4 MATLAB tests and representative acceptance checks passing at Agent 5 commits `558f803` and `d7ab337`, integrated as `f9e77d7` and `e5333e8`. This includes batch selection and processing. The reported tests use controlled dialog and EEGLAB substitutes for deterministic coverage; the representative run checked real Stage 1 → Stage 2 outputs. Software versions and individual logs were not provided in the handoff.
 
 On 2026-09-09 the researcher reported all Agent 4 checks passing at `610de9a`, integrated unchanged as `47a8d2e`. The handoff covers synthetic validator tests, MATLAB code checks, current Stage 0–2 full-script/section runs, and Stage 2 independence from the raw BDF path. These are researcher-reported results; MATLAB was not run on the coordinator machine.
 

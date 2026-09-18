@@ -1,6 +1,6 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
 
 ## Purpose and scope
@@ -35,6 +35,15 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-14 | Configure the range-divisor threshold (default 4) and crossing duration in milliseconds (default 20 ms); use the nearest zero-time sample with positive-side tie breaking. | Integrated; synthetic and representative-run validation reported |
 | CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Integrated; synthetic and representative-run validation reported |
 | CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
+| CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
+
+## File selection and participant identity (CD-17)
+
+The configured input folders are starting locations for the Stage 1 and Stage 2 selectors. Each stage loads from the folder actually returned by its selector. Cancelling either dialog ends that run before participant processing. When run by sections, a cancelled selection is emptied; users stop there and select files again before continuing.
+
+Stage 1 uses `fileparts` on the raw BDF filename: `001.bdf` gives the character ID `'001'`. It saves that value in `EMG.subject`, and Stage 2 uses the saved subject rather than parsing the SET filename. Feature-table keys use strings, preserving leading zeros. Other studies can adapt the filename-stem extraction line in Stage 1; this project does not add a general parser or a new Stage 0 naming setting. The researcher explicitly chose not to add empty-ID or duplicate-ID checks, leaving filename correctness to users.
+
+Agent 5 commits `558f803` and `d7ab337` were integrated as `f9e77d7` and `e5333e8`. The researcher reported all MATLAB tests and acceptance checks passing, including batch processing, on 2026-09-18. See [the handoff](tests/file_selection_identity_handoff.md). MATLAB and EEGLAB were not run by Agent 0.
 
 CD-13 through CD-15 define the approved trigger-shifting behavior. The researcher selected 20 ms as the default crossing duration, replacing the former fixed 10-sample default.
 
