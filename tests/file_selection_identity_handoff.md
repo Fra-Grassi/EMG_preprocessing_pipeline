@@ -71,6 +71,8 @@ Use a validation checkout with empty output directories so this exercise creates
    Read CSV IDs explicitly as text; automatic numeric type inference can discard leading zeros. Choose representative data with retained feature rows; an empty feature table is not evidence for this identity check.
 5. **Successful sections and batch selection.** In fresh validation outputs configured via Stage 0, repeat the successful run by Editor sections, starting with each stage's entry section and running each processing section once using the existing loop workflow. Repeat the assertions above. If a second representative `002.bdf` is available, also select both files in one dialog and confirm `001` and `002` remain distinct in saved SET subjects and the final table. Record whether this optional real-data batch check was run; synthetic selection and stem checks cover both IDs independently.
 
-## Local validation status
+## Validation status
 
-MATLAB and Octave are unavailable in the implementation worktree. The MATLAB tests, Code Analyzer, GUI cancellation/section behavior, and representative EEGLAB run have **not been executed** here. No participant data or generated outputs were created or modified. Python/static inspection checks CRLF preservation, focused diffs, cancellation before loops, selected-directory loading, `fileparts` extraction, and the unchanged Stage 2 text-key construction. MATLAB acceptance remains pending.
+MATLAB and Octave are unavailable in the implementation worktree. No participant data or generated outputs were created or modified here. Local Python/static inspection checked CRLF preservation, focused diffs, cancellation before loops, selected-directory loading, `fileparts` extraction, and the unchanged Stage 2 text-key construction.
+
+On 2026-09-18, the researcher reported that all MATLAB tests and acceptance checks passed, including batch selection and processing, and that all scripts ran as intended. This is researcher-reported MATLAB/EEGLAB validation; the implementation agent did not execute the MATLAB run locally. The researcher did not provide software version numbers or per-check output logs in this report.

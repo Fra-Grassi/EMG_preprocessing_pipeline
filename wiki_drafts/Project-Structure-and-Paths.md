@@ -46,7 +46,7 @@ For this project, name raw files `001.bdf`, `002.bdf`, and so on. Stage 1 Sectio
 
 For another project's naming convention, adapt the ID extraction line in Stage 1 Section 1.3.5 and keep the result as text. Configure the output suffix in Stage 0; if it differs from `_raw`, also adapt Stage 2 Section 2.2's `*_raw.set` selection filter. There is no additional Stage 0 naming option or generic filename parser.
 
-This Tier 1.4 behavior follows the researcher's explicit task approval and CD-02's text-identity rule. The shared decision register and plan await Agent 0's update; MATLAB validation is pending in the [file-selection acceptance guide](../tests/file_selection_identity_handoff.md).
+This Tier 1.4 behavior follows the researcher's explicit task approval and CD-02's text-identity rule. On 2026-09-18, the researcher reported all MATLAB tests and checks passing, including batch selection and processing; see the [file-selection acceptance guide](../tests/file_selection_identity_handoff.md). The shared decision register and plan await Agent 0's update.
 
 ## Complete scripts and individual sections
 
