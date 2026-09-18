@@ -101,28 +101,43 @@ verifyFalse(testCase, result.stats_exists);
 verifyEqual(testCase, height(result.feature_csv), 20);
 end
 
-function testLaterProcessingFailurePreservesCompletedCheckpoint(testCase)
+function testStatisticsSavedAtEndOfDetectionSection(testCase)
+result = run_fixture(testCase.TestData, [1 1], true, false, 'rejection_only', false);
+verifyEmpty(testCase, result.error);
+verifyEqual(testCase, result.final_stats.subject_ID, "001");
+verifyEqual(testCase, result.final_stats.n_rejected_total, 3);
+verifyEmpty(testCase, result.rejection_tables{2});
+verifyFalse(testCase, result.feature_exists);
+end
+
+function testLaterProcessingFailureKeepsCurrentRejectionRow(testCase)
 result = run_fixture(testCase.TestData, [1 1], true, false, 'standardization', false);
 verifyEqual(testCase, result.error.identifier, 'standardize_mav_features:InvalidReference');
-verifyEqual(testCase, result.final_csv_text, result.observations{1}.csv_text);
-verifyEmpty(testCase, result.rejection_tables{2});
+verifyEqual(testCase, result.final_stats.subject_ID, result.ids);
+verifyEqual(testCase, result.final_stats.n_rejected_total, [3; 3]);
+verifyEqual(testCase, result.final_stats(1, :), result.observations{1}.stats_csv);
+verifyEqual(testCase, result.rejection_tables{2}.subject_ID, "P007");
 verifyEqual(testCase, result.feature_csv.subject_ID, ...
     repmat("001", height(result.feature_csv), 1));
 end
 
-function testFeatureSaveFailurePreservesRejectionCheckpoint(testCase)
+function testFeatureSaveFailureKeepsCurrentRejectionRow(testCase)
 result = run_fixture(testCase.TestData, [1 0], true, false, 'feature_save', false);
 verifyNotEmpty(testCase, result.error);
-verifyEqual(testCase, result.final_csv_text, result.observations{1}.csv_text);
-verifyEmpty(testCase, result.rejection_tables{2});
+verifyEqual(testCase, result.final_stats.subject_ID, result.ids);
+verifyEqual(testCase, result.final_stats.n_rejected_total, [2; 2]);
+verifyEqual(testCase, result.final_stats(1, :), result.observations{1}.stats_csv);
+verifyEqual(testCase, result.rejection_tables{2}.subject_ID, "P007");
 verifyEqual(testCase, unique(result.feature_csv.subject_ID), "001");
 end
 
-function testFirstParticipantFailureDoesNotCreateStatistics(testCase)
+function testFirstParticipantFeatureFailureKeepsRejectionRow(testCase)
 result = run_fixture(testCase.TestData, [1 0], true, false, 'first_participant', false);
 verifyEqual(testCase, result.error.identifier, 'standardize_mav_features:InvalidReference');
-verifyFalse(testCase, result.stats_exists);
-verifyTrue(testCase, all(cellfun(@isempty, result.rejection_tables)));
+verifyEqual(testCase, result.final_stats.subject_ID, "001");
+verifyEqual(testCase, result.final_stats.n_rejected_total, 2);
+verifyEmpty(testCase, result.rejection_tables{2});
+verifyFalse(testCase, result.feature_exists);
 end
 
 function testSectionExecutionMatchesContinuousExecution(testCase)
@@ -196,7 +211,11 @@ for si = 1:2
         sets.amplitudes_dir = fullfile(output_dir, 'nonexistent_directory');
     end
     try
-        if by_section
+        if strcmp(scenario, 'rejection_only')
+            eval(source_between(code.process, '%% 2.4.8 - Artefact detection', ...
+                '%% 2.4.9 - Baseline correction'));
+            break % Inspect the checkpoint before any feature processing begins.
+        elseif by_section
             sections = regexp(code.process, '(?m)(?=^\s*%% 2\.4\.)', 'split');
             for section = 1:numel(sections)
                 eval(sections{section});
@@ -223,6 +242,9 @@ result.stats_exists = isfile(stats_path);
 result.final_csv_text = '';
 if result.stats_exists
     result.final_csv_text = fileread(stats_path);
+    if save_stats && any(mode)
+        result.final_stats = read_csv(stats_path);
+    end
 end
 if any(mode)
     result.rejection_tables = participant_rejection_tables;

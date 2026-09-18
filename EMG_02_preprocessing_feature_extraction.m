@@ -89,7 +89,7 @@ end
 % participant has completed preprocessing and feature-table validation.
 participant_feature_tables = cell(length(file), 1);
 
-% Keep participant-local rejection tables separate until processing completes.
+% Store rejection tables as each participant completes rejection accounting.
 % Empty cells are never included in the cumulative rejection checkpoint.
 if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
     participant_rejection_tables = cell(length(file), 1);
@@ -347,7 +347,7 @@ for si = 1:length(file)
             end
         end
 
-        % Construct only this participant's row; do not checkpoint unfinished work.
+        % Construct only this participant's rejection row.
         participant_rejection_table = cell2table(...
             [{string(subj_ID), n_rej_total}, n_rej_cond, {perc_rej_total}, perc_rej_cond], ...
             'VariableNames', ...
@@ -355,6 +355,17 @@ for si = 1:length(file)
             cellfun(@(x) ['n_rejected_', x], sets.condition_names, 'UniformOutput', false), ...
             {'perc_rejected_total'}, ...
             cellfun(@(x) ['perc_rejected_', x], sets.condition_names, 'UniformOutput', false)]);
+
+        % Checkpoint immediately after rejection accounting, independently of features.
+        % A later feature-processing failure leaves this participant's rejection row saved.
+        participant_rejection_tables{si} = participant_rejection_table;
+
+        if sets.do_save_trial_rejection_stats
+            reject_info_table = vertcat(participant_rejection_tables{1:si});
+            writetable(reject_info_table, fullfile(sets.processed_dir, sets.fname_trial_rejection_stats));
+
+            fprintf('\nRejected trials info SAVED for %d participant(s)\n\n', si);
+        end
 
     end
 
@@ -726,21 +737,6 @@ for si = 1:length(file)
 
         fprintf('\nFeature amplitudes SAVED for %d completed participant(s)\n\n', si);
         
-    end
-
-    %% 2.4.16 - Save completed-participant rejection statistics
-
-    % All processing, feature-table construction, and requested feature saving
-    % have succeeded. Only now add this participant to the rejection checkpoint.
-    if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
-        participant_rejection_tables{si} = participant_rejection_table;
-
-        if sets.do_save_trial_rejection_stats
-            reject_info_table = vertcat(participant_rejection_tables{1:si});
-            writetable(reject_info_table, fullfile(sets.processed_dir, sets.fname_trial_rejection_stats));
-
-            fprintf('\nRejected trials info SAVED for %d completed participant(s)\n\n', si);
-        end
     end
 
 end
