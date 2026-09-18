@@ -140,8 +140,8 @@ Likely files: Stage 1, Stage 2, new tests where EEGLAB-independent logic can be 
 
 ### 1.5 Make rejection accounting internally consistent
 
-- [ ] Write rejection statistics only for participants completed so far, avoiding preallocated empty rows in incremental CSV checkpoints.
-- [ ] Define behavior when a configured condition has zero trials, including whether its rejection percentage is missing or explicitly reported another way.
+- [ ] Write rejection statistics inside the participant loop only after a participant completes Stage 2 processing and validation; each cumulative CSV includes only completed participants, with no preallocated empty rows (CD-18).
+- [ ] For a configured condition with zero trials, write `NaN` for both rejected-trial count and rejection percentage (CD-18); distinguish this from zero rejections among present trials.
 - [ ] Verify automatic-only, manual-only, combined, and disabled rejection paths.
 - [ ] Confirm that saved preprocessed SET files intentionally retain flagged trials while extracted features use only retained trials.
 - [ ] Reassess automatic-rejection thresholds scientifically; do not tune them merely to obtain a preferred rejection rate.

@@ -36,6 +36,13 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Integrated; synthetic and representative-run validation reported |
 | CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
+| CD-18 | Write rejection-statistics checkpoints only for fully completed participants; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Approved; implementation pending |
+
+## Rejection accounting (CD-18)
+
+After a participant completes Stage 2 preprocessing and output validation, rewrite the cumulative rejection-statistics CSV using only participants completed so far. If a later participant errors, the prior checkpoint remains available without a blank or partial row for that participant. Keep saving inside the participant loop, following the existing recovery preference for feature output.
+
+For a configured condition with no trials for a participant, write `NaN` in both its rejected-trial count and rejection-percentage columns. This distinguishes an absent condition from a present condition with zero rejected trials. Existing scientific rejection thresholds are unchanged. The behavior of automatic-only, manual-only, combined, and disabled rejection paths still requires verification.
 
 ## File selection and participant identity (CD-17)
 
