@@ -89,15 +89,10 @@ end
 % participant has completed preprocessing and feature-table validation.
 participant_feature_tables = cell(length(file), 1);
 
-% If performing artefact detection, preallocate a cell array to store info on rejected trials.
-% Array has one row per participant, with colums for:
-% - Subject ID
-% - Number of rejected trials across all conditions
-% - Percentage of rejected trials across all conditions
-% - One column with number of rejected trials per condition
-% - One column with percentage of rejected trials per condition
+% Keep participant-local rejection tables separate until processing completes.
+% Empty cells are never included in the cumulative rejection checkpoint.
 if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
-    reject_info = cell(length(file), 3 + length(sets.condition_names) * 2);
+    participant_rejection_tables = cell(length(file), 1);
 end
 
 fprintf('\nOutput variables CREATED\n\n');
@@ -337,42 +332,29 @@ for si = 1:length(file)
         n_rej_total = sum(EMG.reject.rejglobal);  % number of rejected trials across conditions
         perc_rej_total = n_rej_total/length(EMG.epoch);  % percentage of rejected trials across conditions
         
-        % Number and percentage of rejected trials within each condition
-        n_rej_cond = cell(1, length(sets.condition_names));  % preallocate cell to store number of rejected trials per condition
-        perc_rej_cond = cell(1, length(sets.condition_names));  % preallocate cell to store percentage of rejected trials per condition
-        
-        % Loop through conditions
+        % A configured condition with no trials has missing count and percentage (CD-18).
+        n_rej_cond = num2cell(nan(1, length(sets.condition_names)));
+        perc_rej_cond = num2cell(nan(1, length(sets.condition_names)));
+
         for i = 1:length(sets.condition_names)
-            
-            % Number of rejected trials within one condition
-            n_rej_cond{1, i} = sum(...  % sum trials...
-                strcmp({EMG.event.type}, sets.condition_names{i}) & ...  % ...that belong to current condition...
-                EMG.reject.rejglobal);  % ...and are flagged
-            
-            % Percentage of rejected trials within one condition
-            perc_rej_cond{1, i} = n_rej_cond{1, i}/sum(strcmp({EMG.event.type}, sets.condition_names{i})); 
+            condition_trials = strcmp({EMG.event.type}, sets.condition_names{i});
+            n_condition_trials = sum(condition_trials);
+
+            if n_condition_trials > 0
+                n_rej_cond{1, i} = sum(condition_trials & EMG.reject.rejglobal);
+                % Preserve the existing fractional encoding (0 to 1).
+                perc_rej_cond{1, i} = n_rej_cond{1, i}/n_condition_trials;
+            end
         end
-        
-        % Store all info for this subject
-        reject_info(si, :) = [{subj_ID, n_rej_total}, n_rej_cond, {perc_rej_total}, perc_rej_cond]; 
-        
-        % Check if saving info is on
-        if sets.do_save_trial_rejection_stats
-            
-            % Turn cell into table and assign column names
-            reject_info_table = cell2table(reject_info,...
-                'VariableNames',...
-                [{'subject_ID', 'n_rejected_total'},...
-                cellfun(@(x) ['n_rejected_', x], sets.condition_names, 'UniformOutput', false),...
-                {'perc_rejected_total'},...
-                cellfun(@(x) ['perc_rejected_', x], sets.condition_names, 'UniformOutput', false)]);
-            
-            % Save table
-            writetable(reject_info_table, fullfile(sets.processed_dir, sets.fname_trial_rejection_stats));
-            
-            fprintf('\nRejected trials info SAVED\n\n');
-            
-        end
+
+        % Construct only this participant's row; do not checkpoint unfinished work.
+        participant_rejection_table = cell2table(...
+            [{string(subj_ID), n_rej_total}, n_rej_cond, {perc_rej_total}, perc_rej_cond], ...
+            'VariableNames', ...
+            [{'subject_ID', 'n_rejected_total'}, ...
+            cellfun(@(x) ['n_rejected_', x], sets.condition_names, 'UniformOutput', false), ...
+            {'perc_rejected_total'}, ...
+            cellfun(@(x) ['perc_rejected_', x], sets.condition_names, 'UniformOutput', false)]);
 
     end
 
@@ -408,8 +390,8 @@ for si = 1:length(file)
 
     %% 2.4.10 - Save preprocessed datasets
 
-    % Next standardization steps require to work only on clean data. Therefore, here save the dataset as preprocessed so
-    % far as a checkpoint.
+    % Preserve flagged trials and rejection marks in this inspection checkpoint.
+    % Section 2.4.11 removes them before feature extraction and standardization.
     
     % Check if saving data is on
     if sets.do_save_preprocessed_data
@@ -744,6 +726,21 @@ for si = 1:length(file)
 
         fprintf('\nFeature amplitudes SAVED for %d completed participant(s)\n\n', si);
         
+    end
+
+    %% 2.4.16 - Save completed-participant rejection statistics
+
+    % All processing, feature-table construction, and requested feature saving
+    % have succeeded. Only now add this participant to the rejection checkpoint.
+    if sets.do_artefact_detection_automatic || sets.do_artefact_detection_manual
+        participant_rejection_tables{si} = participant_rejection_table;
+
+        if sets.do_save_trial_rejection_stats
+            reject_info_table = vertcat(participant_rejection_tables{1:si});
+            writetable(reject_info_table, fullfile(sets.processed_dir, sets.fname_trial_rejection_stats));
+
+            fprintf('\nRejected trials info SAVED for %d completed participant(s)\n\n', si);
+        end
     end
 
 end
