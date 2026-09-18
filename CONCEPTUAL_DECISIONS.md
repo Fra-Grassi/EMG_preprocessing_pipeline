@@ -36,7 +36,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Integrated; synthetic and representative-run validation reported |
 | CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
-| CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests passed on 2026-09-18 |
+| CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests and real-data check passed on 2026-09-18 |
 
 ## Rejection accounting (CD-18)
 
@@ -44,7 +44,7 @@ Immediately after calculating a participant's rejection statistics in Stage 2 Se
 
 For a configured condition with no trials for a participant, write `NaN` in both its rejected-trial count and rejection-percentage columns. This distinguishes an absent condition from a present condition with zero rejected trials. Existing `perc_*` values remain fractions from 0 to 1. Scientific rejection thresholds are unchanged. The synthetic tests cover automatic-only, manual-only, combined, and disabled rejection paths.
 
-Agent 6 commits `f3116f5` and `5f16bbb` were integrated as `c2d4bdc` and `7a08a45`. The researcher reported all original tests and two representative participant runs passing, then reported all revised tests passing after the Section 2.4.8 timing change. MATLAB was not run by Agent 0. The earlier representative runs do not by themselves validate the revised save timing in real EEGLAB.
+Agent 6 commits `f3116f5` and `5f16bbb` were integrated as `c2d4bdc` and `7a08a45`. The researcher reported all original tests and two representative participant runs passing, then reported all revised tests and a real-data check passing after the Section 2.4.8 timing change. MATLAB was not run by Agent 0. Automatic-rejection thresholds remain user/researcher settings to choose for each dataset according to data quality and research questions; selecting them is outside this pipeline implementation work.
 
 ## File selection and participant identity (CD-17)
 
@@ -352,11 +352,9 @@ Agent 4 commit `610de9a` was integrated unchanged as `47a8d2e`; the researcher r
 
 ## Decisions intentionally deferred
 
-The following points are not settled by the completed MAV work:
+The following points remain outside the completed implementation work:
 
-- automatic artifact-rejection thresholds and the scientific criteria used to select them;
-- the validated behavior of variable photodiode trigger shifting;
-- acceptable behavior when a configured condition contains zero trials;
+- behavior when every configured condition has zero trials, beyond the defined `NaN` rejection statistics for an individually absent condition;
 - how output files should encode the exact settings and software versions used for a run;
 - formal compatibility claims beyond the MATLAB R2024b tests already performed.
 
