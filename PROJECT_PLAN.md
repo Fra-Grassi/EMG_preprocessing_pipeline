@@ -140,14 +140,15 @@ Likely files: Stage 1, Stage 2, new tests where EEGLAB-independent logic can be 
 
 ### 1.5 Make rejection accounting internally consistent
 
-- [ ] Write rejection statistics inside the participant loop only after a participant completes Stage 2 processing and validation; each cumulative CSV includes only completed participants, with no preallocated empty rows (CD-18).
-- [ ] For a configured condition with zero trials, write `NaN` for both rejected-trial count and rejection percentage (CD-18); distinguish this from zero rejections among present trials.
-- [ ] Verify automatic-only, manual-only, combined, and disabled rejection paths.
-- [ ] Confirm that saved preprocessed SET files intentionally retain flagged trials while extracted features use only retained trials.
+- [x] Write rejection statistics immediately after their calculation in Section 2.4.8; each cumulative CSV includes only participants whose statistics have been calculated so far, with no preallocated empty rows (CD-18). A later feature failure may leave the current participant's rejection row saved.
+- [x] For a configured condition with zero trials, write `NaN` for both rejected-trial count and rejection percentage (CD-18); distinguish this from zero rejections among present trials.
+- [x] Verify automatic-only, manual-only, combined, and disabled rejection paths in synthetic tests.
+- [x] Confirm in synthetic tests that the preprocessed SET call retains flagged trials while extracted features use retained trials; representative runs of the original implementation also passed.
 - [ ] Reassess automatic-rejection thresholds scientifically; do not tune them merely to obtain a preferred rejection rate.
 
 Likely files: Stage 2, Stage 0 documentation, integration tests.
 Scientific decision: artifact thresholds and acceptable rejection rates belong to the researcher.
+Agent 6 commits `f3116f5` and `5f16bbb` were integrated as `c2d4bdc` and `7a08a45`. The researcher reported the revised MATLAB tests passing on 2026-09-18. A real-data check of the revised early rejection checkpoint remains useful; the scientific threshold review remains open.
 
 ## Delegation map for Tier 1.1 and 1.2
 
@@ -314,12 +315,14 @@ The authoritative information flow is:
 2. Tier 1.2: trigger shifting — integrated and representative runs validated; settings-cleanup rerun passed.
 3. Tier 1.3: settings validator — completed, integrated, and researcher-validated.
 4. Tier 1.4: file selection and participant identity — completed and researcher-validated.
-5. Tier 1.5: rejection accounting and scientific audit.
+5. Tier 1.5: rejection accounting implemented and revised tests passed; scientific threshold review remains open.
 6. Tier 2 work in small, independently reviewed units.
 
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-18 the researcher reported all revised Tier 1.5 MATLAB tests passing at Agent 6 commit `5f16bbb`, integrated as `7a08a45`. The researcher had also reported all original tests and runs on two representative participants passing before the save was moved into Section 2.4.8. The revised synthetic suite covers immediate rejection checkpointing, later feature failures, absent conditions, and the rejection-mode combinations. No revised real EEGLAB run was reported.
 
 On 2026-09-18 the researcher reported all Tier 1.4 MATLAB tests and representative acceptance checks passing at Agent 5 commits `558f803` and `d7ab337`, integrated as `f9e77d7` and `e5333e8`. This includes batch selection and processing. The reported tests use controlled dialog and EEGLAB substitutes for deterministic coverage; the representative run checked real Stage 1 → Stage 2 outputs. Software versions and individual logs were not provided in the handoff.
 

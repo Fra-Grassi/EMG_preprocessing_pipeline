@@ -48,6 +48,8 @@ Two settings control different outputs:
 
 Saving a rejection report does not require restoring rejected feature rows, and restoring rows does not define whether the rejection report is saved. The distinction allows the researcher to choose an audit summary, an analysis-table representation, or both.
 
+The rejection report is checkpointed in Section 2.4.8 immediately after each participant's rejection statistics are calculated. It contains only participants reached so far, with no empty rows reserved for later participants. The separate feature CSV is checkpointed after feature processing. If a participant's later feature step fails, that participant can therefore appear in the rejection report but not yet in the feature CSV. For a configured condition with no trials, both its rejected count and rejection fraction are missing (`NaN`); a present condition with zero rejected trials has `0` in both columns. The `perc_*` columns store fractions from 0 to 1.
+
 Rejected-row restoration is incompatible with condition-level trial averaging in the current settings checks. After averaging, a row represents a condition summary rather than one original trial, so it cannot be mapped back to an individual rejected trial.
 
 ## Wide-table organization
