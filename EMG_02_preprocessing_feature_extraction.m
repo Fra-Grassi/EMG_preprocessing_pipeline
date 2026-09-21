@@ -27,11 +27,11 @@
 %   7. Feature extraction by bins
 %   8. Within-muscle or within-subject feature standardization
 %   9. Trial averaging
-% (See Rutkowska et al., 20204, for details)
+% (See Rutkowska et al., 2024, for details)
 %
 % Additional Features:
-% - Output data maintains original trial number (as before trial rejection).
-% - Output retains both baseline-corrected and standardized feature values.
+% - Trial-level output maintains original trial numbers (before trial rejection).
+% - Output retains unstandardized features and, when enabled, standardized features.
 %
 % Usage:
 % 1. Run the script to select raw SET files (of individual participants) for processing.
@@ -41,9 +41,9 @@
 % - EEGLab Toolbox
 %
 % Output:
-% - Processed SET files in the specified output directory.
-% - Extracted features.
-% - Log of rejected artefacts.
+% - Optional preprocessed SET checkpoints retaining flagged trials and rejection marks.
+% - Optional cumulative feature CSV for participants whose feature tables are complete.
+% - Optional cumulative rejection-statistics CSV saved immediately after rejection accounting.
 %
 %% 2.1 - Toolboxes
 
@@ -86,7 +86,7 @@ end
 %% 2.3 - Prepare output variables
 
 % Preallocate one table per participant. Each table is stored only after the
-% participant has completed preprocessing and feature-table validation.
+% participant has completed preprocessing and feature-table construction.
 participant_feature_tables = cell(length(file), 1);
 
 % Store rejection tables as each participant completes rejection accounting.
@@ -99,13 +99,12 @@ fprintf('\nOutput variables CREATED\n\n');
 
 %% 2.4 - Main loop
 
-% Loop through all selected dataset and apply preprocessing steps
+% Loop through all selected datasets and apply preprocessing steps
 for si = 1:length(file)
     
     %% 2.4.1 - Load dataset
     
     EMG = pop_loadset('filename', file{si}, 'filepath', thissubjectpath);
-    EMG_bkp = EMG;  % temporary for debugging
     
     fprintf('\nDataset loading COMPLETE\n\n');
 
@@ -179,7 +178,7 @@ for si = 1:length(file)
         if strcmp(sets.filter_type_main, 'bandpass')
             % if bandpass, use the specified low- and high-cutoff
             low_cutoff = sets.filter_cutoff_main(1);  % lower edge of pass band
-            high_cutoff = sets.filter_cutoff_main(2);  % higher edge of pass bad
+            high_cutoff = sets.filter_cutoff_main(2);  % higher edge of pass band
         elseif strcmp(sets.filter_type_main, 'highpass')
             % if highpass, set lower edge to specified cutoff and no higher edge
             low_cutoff = sets.filter_cutoff_main;
@@ -213,7 +212,7 @@ for si = 1:length(file)
     
     %% 2.4.5 - Downsampling
     
-    % Check if downsampling in on
+    % Check if downsampling is on
     if sets.do_downsampling
         EMG = pop_resample(EMG, sets.downsample_rate);
 
@@ -252,7 +251,7 @@ for si = 1:length(file)
         
         % Automatic artefact detection on baseline ----
         
-        % % Epoch data to only include baseline
+        % Epoch data to only include baseline
         EMG_baseline = pop_epoch(EMG, sets.condition_names, [sets.epoch_length(1), 0], 'epochinfo', 'yes');
         
         % Detect artefacts in the baseline
@@ -299,7 +298,7 @@ for si = 1:length(file)
         
         % --- HOW TO USE GUI ---
         % - Don't care about values set in all the menu boxes, they won't be applied
-        % - Click on "Scoll Data" on top, this will open a new window
+        % - Click on "Scroll Data" on top, this will open a new window
         % - In the new window trials automatically flagged are colored (probably in red-pink)
         % - Click on a flagged trial to unflag it. Click on an unflagged trial to flag it
         % - When finished:

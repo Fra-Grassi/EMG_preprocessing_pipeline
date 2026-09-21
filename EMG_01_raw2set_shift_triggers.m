@@ -24,7 +24,7 @@
 % - Optional trigger shifting to correct event timings:
 %   - 'variable' mode: Per-target photodiode delay with recording-median fallback.
 %   - 'median' mode: Recording median of valid photodiode delays for all targets.
-%   - Fixed delay mode: Applies a constant time shift to all triggers.
+%   - Fixed delay mode: Applies a constant time shift to selected triggers.
 %
 % Usage:
 % 1. Run the script to select raw files for processing.
@@ -37,7 +37,8 @@
 % - Custom functions: shift_triggers(), fix_EEG_markers()
 %
 % Output:
-% - Converted SET files in the respective output directories.
+% - One converted SET file per participant in sets.rawSET_dir.
+% - Trigger-shift diagnostics MAT files in sets.rawSET_dir when shifting is enabled.
 % - Log messages indicating the progress of each file's conversion.
 %
 %% 1.1 - Toolboxes and functions
@@ -86,7 +87,6 @@ for si = 1:length(file)
 
     EMG = pop_biosig(fullfile(thissubjectpath, file{si}));
 
-    EMG_bkp = EMG;  % temporary, for debugging
     
     %% 1.3.2 - Convert event types to character vectors
     

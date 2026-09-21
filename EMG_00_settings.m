@@ -17,7 +17,7 @@
 %   3. Signal rectification
 %   4. Epoch extraction
 %   5. Artefact detection and rejection
-%   6. Feature extraction (by bins, optionally)
+%   6. Feature extraction by bins
 %   7. Baseline correction
 %   8. Within-muscle and within-subject standardization
 %   9. Trial averaging
@@ -30,9 +30,8 @@
 %    Keep this script active in the MATLAB Editor. Rerun after changing settings.
 %
 % Output:
-% - A MATLAB struct 'preprocessing_settings.mat' to be used in following.
-% preprocessing steps
-% - A 'preprocessing_params.txt' log of the parameters for quick reference.
+% - 'preprocessing_settings.mat' containing the 'sets' struct for later stages.
+% - 'preprocessing_settings.txt' listing the parameters for quick reference.
 %
 % Requirements:
 % - MATLAB
@@ -93,10 +92,10 @@ sets.recording_layout = 'EMG';
 % character-based event handling in relevant EEGLAB functions.
 % Enter the exact experimenter-defined code, preserving prefixes, spaces, and leading zeros.
 % IMPORTANT: these are assumed to also be the time-locking epoch event (the 0ms time of the epoch)
-% Here specift the condition trigger as the punchline trigger
+% Here specify the condition trigger as the punchline trigger
 sets.condition_triggers = {'121', '221'};
 
-% Cell array of strings specifying condition names (e.g., {'conditiona_1', 'condition_2'}).
+% Cell array of strings specifying condition names (e.g., {'condition_1', 'condition_2'}).
 % IMPORTANT: condition names must be in same order as condition triggers
 sets.condition_names = {'unconstrained', 'suppressed'};
 
@@ -246,9 +245,9 @@ sets.do_standardization_subject = 0;
 sets.feature_extraction_method = 'mav';
 
 % Single numerical value specifying bin duration in milliseconds.
-% The script will extract as many bins of that length as possible from the epoch
-% together with one additional bin of the same lenght from the baseline.
-% NOTE 1: to ensure features are extracted from the entire epoch, this must be a multiple of bin duration.
+% The script extracts bins spanning the post-stimulus epoch,
+% together with one additional bin of the same length immediately before time zero.
+% NOTE 1: the post-stimulus epoch duration must be an integer multiple of bin duration.
 % NOTE 2: an error will be produced if baseline is shorter than bin duration.
 sets.feature_extraction_bin_dur = 1000;
 
@@ -273,7 +272,8 @@ sets.do_save_trial_rejection_stats = 1;
 sets.fname_trial_rejection_stats = 'rejected-trials-info.csv';
 
 % Preprocessed data
-% Specify whether to save EMG struct after all preprocessing steps, including flagged trials, and trial number.
+% Specify whether to save the EMG struct after baseline correction, before flagged trials are removed.
+% The saved checkpoint retains rejection marks and original trial numbers.
 sets.do_save_preprocessed_data = 1;
 
 % Specify name suffix for preprocessed SET file as string.
@@ -286,7 +286,7 @@ sets.fname_preprocessed_data = '_preprocessed';
 sets.do_save_features_amplitudes = 1;
 
 % Keep rejected trial indexes
-% Specify whether to also include rejected trials as empty rows in the output feature amplitudes table
+% Specify whether to include rejected trials with their row identifiers and missing feature values in the output table
 % NOTE: this option is only available if trial averaging is DISABLED and at least one rejection method is enabled!
 sets.do_save_rejected_trial_rows = 1;
 
