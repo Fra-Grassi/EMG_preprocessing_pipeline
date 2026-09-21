@@ -138,7 +138,7 @@ shift_triggers = @unexpected_shift; %#ok<NASGU>
 eval(code);
 end
 
-function varargout = unexpected_shift(varargin)
+function varargout = unexpected_shift(varargin) %#ok<STOUT>
 error('test_stage1_trigger_shift_integration:UnexpectedShift', ...
     'Disabled Stage 1 shifting must not call shift_triggers.');
 end
