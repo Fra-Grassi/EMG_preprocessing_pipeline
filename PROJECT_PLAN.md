@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-18
-Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
+Last updated: 2026-09-21
+Latest researcher-tested changes: the Agent 8 and Agent 9 Tier 2 regression suites were reported passing in MATLAB R2024b on 2026-09-21, including successful `assertSuccess` calls. Their test implementations were integrated as `05a170a` and `17b73c2`; later analyzer cleanups changed comments and suppressions only.
 
 ## Purpose
 
@@ -275,9 +275,12 @@ The authoritative information flow is:
 ### 2.2 Expand regression coverage beyond MAV
 
 - [x] Add deterministic tests for marker normalization.
-- [ ] Add automated integration coverage for condition-label creation, trigger shifting, participant-key preservation, rejected-row reconstruction, and settings validation.
-- [ ] Add small synthetic integration fixtures where EEGLAB-independent testing is possible.
-- [ ] Maintain explicit MATLAB R2024b execution instructions and record compatibility results for later releases when tested.
+- [x] Add automated integration coverage for condition-label creation and Stage 1 trigger-shift orchestration.
+- [x] Add automated regression coverage for participant-key preservation and rejected-row reconstruction.
+- [x] Add deterministic settings-validator tests and complete the documented stage-entry acceptance sequence.
+- [x] Add small synthetic integration fixtures where EEGLAB-independent testing is possible.
+- [x] Maintain explicit MATLAB R2024b execution instructions and record reported R2024b results.
+- [ ] Record compatibility results for later MATLAB releases when they are tested.
 
 ### 2.3 Improve run provenance and recoverability
 
@@ -288,10 +291,10 @@ The authoritative information flow is:
 
 ### 2.4 Remove development-only overhead and stale comments
 
-- [ ] Remove or gate full-dataset debug copies such as `EMG_bkp` once no longer needed.
-- [ ] Reassess the unconditional Stage 1 pause.
-- [ ] Correct stale filenames, typos, section descriptions, and output descriptions.
-- [ ] Keep cleanup commits separate from scientific changes where practical.
+- [x] Remove unused full-dataset debug copies such as `EMG_bkp`.
+- [x] Remove the former unconditional Stage 1 pause while retaining the trigger-shift diagnostic figure for user inspection.
+- [x] Correct stale filenames, typos, section descriptions, and output descriptions.
+- [x] Keep this cleanup separate from scientific changes; Agent 7 was integrated as cleanup-only commit `16a17c7`.
 
 ## Tier 3: documentation and project presentation
 
@@ -319,6 +322,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-21 the researcher reported that both new Tier 2 test suites passed in MATLAB R2024b and that their `assertSuccess` calls completed successfully. Agent 8's tests execute the production condition-label section and Stage 1 trigger-shift orchestration, while Agent 9 extends rejection-accounting coverage for participant-key separation, leading-zero IDs, cumulative CSV readback, and missing feature values on restored rejected rows. Code Analyzer reported only test-harness warnings caused by `eval`-based production-section execution and obsolete suppressions; these were addressed through comment/suppression-only commits `7806e70` and `1e53a07`, with no executable test changes. A post-cleanup Code Analyzer rerun has not yet been reported.
 
 On 2026-09-18 the researcher reported all revised Tier 1.5 MATLAB tests passing at Agent 6 commit `5f16bbb`, integrated as `7a08a45`, and later confirmed that the revised Section 2.4.8 checkpoint timing worked with real data. The researcher had also reported original tests and runs on two representative participants passing before that final timing change. The revised synthetic suite covers immediate rejection checkpointing, later feature failures, absent conditions, and the rejection-mode combinations.
 
