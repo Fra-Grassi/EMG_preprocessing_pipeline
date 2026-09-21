@@ -56,3 +56,30 @@ Use current Stage 0 settings and disposable output folders/filenames; preserve r
 ## Boundaries reported to Agent 0
 
 No policy was added for a recording with zero trials in **every** configured condition; existing epoching/feature failure behavior remains. Existing fractional `perc_*` encoding was preserved and reported explicitly rather than changed to percentages. Real manual marking/unmarking and EEGLAB epoch/event alignment need representative acceptance; the controlled tests assume the existing one-condition-event-per-epoch contract. Direct `writetable` behavior is retained; writes are not transactional. A saved rejection row establishes completion of rejection accounting only, not completion of preprocessing or features.
+
+## Tier 2 participant-key regression extension (Agent 9, 2026-09-21)
+
+This extension changes only `tests/test_rejection_accounting.m` and this handoff, covering CD-02, CD-03, and CD-04 without changing production or scientific assumptions. The existing two-participant fixture still uses IDs `001` and `P007` with the same condition/trial/bin combinations. Participant 2 now receives a synthetic trial-dependent offset of `100 + trial_number^2` on every sample. Raw values differ for every retained key, and the trial-dependent offset also makes the standardized arrays distinguishable; a constant participant offset alone would disappear under standardization.
+
+For automatic-only, manual-only, combined, and disabled rejection, and both applicable rejected-row settings, assertions now inspect each participant table, each cumulative in-memory feature checkpoint, and its actual CSV readback. They check:
+
+- unique `subject_ID + condition + trial_number + bin` keys and preservation of both participants' otherwise identical keys;
+- string IDs, including exact preservation of `001` before and after CSV writing (readback explicitly imports `subject_ID` as string);
+- exactly the configured `n_bins` rows and the complete expected bin sequence for every restored rejected trial, as well as retained trials;
+- missing values in **all** feature columns discovered after the four keys on rejected rows, and nonmissing values in all those columns on retained rows;
+- analytic participant-specific raw MAV and muscle-standardized values, including after cumulative aggregation and CSV readback;
+- absence of rejected keys in clean-only output.
+
+All existing checkpoint/failure assertions remain. The seven test functions outside the expanded rejection-mode test are byte-for-byte unchanged. Static validation passed: `git diff --check`, scoped diff review, preservation checks against the baseline, and an independent Python arithmetic check of the synthetic bin means, nonzero standardization reference SDs, and participant distinguishability for every rejection mode. MATLAB, Octave, and MATLAB Code Analyzer were unavailable locally; **the extended MATLAB suite has not been executed and no new runtime pass is claimed**. No participant outputs or raw data were generated or changed during this extension.
+
+Exact MATLAB R2024b command from the MATLAB Command Window for this isolated worktree:
+
+```matlab
+cd('/private/tmp/emg-tier2-agent9-20260921');
+fprintf('MATLAB release: %s\n', version('-release'));
+results = runtests(fullfile('tests', 'test_rejection_accounting.m'));
+assertSuccess(results);
+checkcode(fullfile('tests', 'test_rejection_accounting.m'), '-id');
+```
+
+The fixture remains limited to one muscle, two bins, five already-epoched trials per participant, raw MAV, muscle-wise standardization, no trial averaging, and matching rejection masks across participants. It does not establish multi-muscle, baseline-correction, subject-standardization, or all-trials-rejected behavior. Generic missingness checks will include added feature columns, but this fixture currently creates only raw and muscle-standardized CS columns. Detection, GUI operations, and SET saving remain controlled substitutes; real EEGLAB serialization, preprocessing before Section 2.4.8, and manual interaction need the representative acceptance checks above. Temporary CSV files are removed by the existing fixture cleanup. Runtime warnings/errors remain unknown until the R2024b command is run.

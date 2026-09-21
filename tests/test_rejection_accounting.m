@@ -45,11 +45,21 @@ for mode = 1:4
             end
             retained_rows = ~ismember(features.trial_number, rejected);
             expected_mav = 5 * features.trial_number(retained_rows) - 1 ...
-                - 2.5 * (features.bin(retained_rows) == 1);
+                - 2.5 * (features.bin(retained_rows) == 1) ...
+                + (si - 1) * (100 + features.trial_number(retained_rows).^2);
             verifyEqual(testCase, features.CS_MAV_raw(retained_rows), expected_mav);
-            reference = 5 * setdiff(1:5, rejected) - 1;
+            retained_trials = setdiff(1:5, rejected);
+            reference = 5 * retained_trials - 1 ...
+                + (si - 1) * (100 + retained_trials.^2);
             verifyEqual(testCase, features.CS_MAV_z_muscle(retained_rows), ...
                 (expected_mav - mean(reference)) / std(reference, 0), 'AbsTol', 1e-12);
+            verifyEqual(testCase, observation.n_bins, result.n_bins);
+            verify_feature_keys_and_values(testCase, features, result.ids(si), ...
+                si, rejected, restore_rows, result.n_bins);
+            verify_feature_keys_and_values(testCase, observation.checkpoint_features, ...
+                result.ids(1:si), 1:si, rejected, restore_rows, result.n_bins);
+            verify_feature_keys_and_values(testCase, observation.feature_csv, ...
+                result.ids(1:si), 1:si, rejected, restore_rows, result.n_bins);
             if any(modes(mode, :))
                 verifyEqual(testCase, find(observation.saved.reject.rejglobal), rejected);
                 stats = observation.stats;
@@ -78,6 +88,67 @@ for mode = 1:4
         end
         verifyEqual(testCase, unique(result.feature_csv.subject_ID), sort(result.ids));
     end
+end
+end
+
+function verify_feature_keys_and_values(testCase, features, ids, ...
+        participant_indices, rejected, restore_rows, n_bins)
+% Apply the same contract to participant tables, cumulative tables, and CSVs.
+keys = {'subject_ID', 'condition', 'trial_number', 'bin'};
+assertGreaterThan(testCase, width(features), numel(keys));
+verifyEqual(testCase, features.Properties.VariableNames(1:4), keys);
+verifyClass(testCase, features.subject_ID, 'string');
+verifyClass(testCase, features.condition, 'string');
+verifyEqual(testCase, unique(features.subject_ID), sort(ids));
+verifyEqual(testCase, height(unique(features(:, keys), 'rows')), height(features));
+
+% Discover every feature column, including future additional muscles/measures.
+feature_names = features.Properties.VariableNames(5:end);
+rejected_rows = ismember(features.trial_number, rejected);
+verifyTrue(testCase, all(ismissing(features{rejected_rows, feature_names}), 'all'));
+verifyFalse(testCase, any(ismissing(features{~rejected_rows, feature_names}), 'all'));
+if ~restore_rows
+    verifyFalse(testCase, any(rejected_rows));
+end
+
+conditions = ["z"; "z"; "z"; "a"; "a"];
+retained_trials = setdiff(1:5, rejected);
+expected_trials = 5 - (~restore_rows) * numel(rejected);
+verifyEqual(testCase, height(features), numel(ids) * expected_trials * n_bins);
+for participant = 1:numel(ids)
+    subject_rows = features.subject_ID == ids(participant);
+    for trial = 1:5
+        trial_rows = subject_rows & features.condition == conditions(trial) ...
+            & features.trial_number == trial;
+        if restore_rows || ~ismember(trial, rejected)
+            % Each full trial key has exactly one row per expected bin.
+            verifyEqual(testCase, sum(trial_rows), n_bins);
+            verifyEqual(testCase, sort(features.bin(trial_rows)), (1:n_bins)');
+        else
+            verifyFalse(testCase, any(trial_rows));
+        end
+    end
+
+    % Analytic means for the synthetic five-sample trials. Participant 2 has
+    % trial-dependent offsets so raw and standardized values expose swaps.
+    si = participant_indices(participant);
+    retained_rows = subject_rows & ~rejected_rows;
+    trials = features.trial_number(retained_rows);
+    expected_mav = 5 * trials - 1 - 2.5 * (features.bin(retained_rows) == 1) ...
+        + (si - 1) * (100 + trials.^2);
+    reference = 5 * retained_trials - 1 ...
+        + (si - 1) * (100 + retained_trials.^2);
+    verifyEqual(testCase, features.CS_MAV_raw(retained_rows), expected_mav, ...
+        'AbsTol', 1e-12);
+    verifyEqual(testCase, features.CS_MAV_z_muscle(retained_rows), ...
+        (expected_mav - mean(reference)) / std(reference, 0), 'AbsTol', 1e-12);
+end
+
+if numel(ids) == 2
+    % Identical condition/trial/bin combinations must survive for BOTH IDs.
+    first_keys = features(features.subject_ID == ids(1), keys(2:end));
+    second_keys = features(features.subject_ID == ids(2), keys(2:end));
+    verifyEqual(testCase, sortrows(first_keys), sortrows(second_keys));
 end
 end
 
@@ -190,13 +261,16 @@ if strcmp(scenario, 'existing_csv')
 end
 file = {'001_raw.set', 'P007_raw.set'}; %#ok<NASGU>
 result.ids = ["001"; "P007"];
+result.n_bins = 1 + sets.epoch_length(2) * 1000 / sets.feature_extraction_bin_dur;
 result.observations = cell(2, 1);
 result.error = [];
 eval(code.prepare);
 for si = 1:2
     subj_ID = char(result.ids(si));
     EMG.subject = subj_ID;
-    EMG.data = reshape(1:25, [1 5 5]);
+    % Keep matching trial keys but distinct values for the two participants.
+    EMG.data = reshape(1:25, [1 5 5]) ...
+        + reshape((si - 1) * (100 + (1:5).^2), [1 1 5]);
     EMG.times = [-1000 -500 0 500 1000];
     EMG.chanlocs = struct('labels', 'CS');
     EMG.event = struct('type', {'z', 'z', 'z', 'a', 'a'}, ...
@@ -230,6 +304,11 @@ for si = 1:2
     observation.saved = saved_dataset;
     observation.retained = EMG;
     observation.features = participant_features_table;
+    observation.checkpoint_features = checkpoint_features_table;
+    observation.n_bins = n_bins;
+    if sets.do_save_features_amplitudes
+        observation.feature_csv = read_csv(feature_path);
+    end
     observation.stats_exists = isfile(stats_path);
     if save_stats && any(mode)
         observation.stats = reject_info_table;
