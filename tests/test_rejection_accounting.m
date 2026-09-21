@@ -230,7 +230,7 @@ end
 function result = run_fixture(code, mode, save_stats, restore_rows, scenario, by_section)
 output_dir = tempname;
 mkdir(output_dir);
-cleanup = onCleanup(@() rmdir(output_dir, 's')); %#ok<NASGU>
+cleanup = onCleanup(@() rmdir(output_dir, 's'));
 sets.condition_names = {'z', 'absent', 'a'}; % Intentionally not alphabetical.
 sets.emg_channel_names = {'CS'};
 sets.epoch_length = [-1 1];
@@ -365,14 +365,14 @@ EEG.reject.rejmanual = [false false true false false];
 assignin('caller', 'EEG', EEG);
 end
 
-function eeglab(varargin) %#ok<INUSD>
+function eeglab(varargin)
 % No GUI during tests.
 end
 
 function uiwait
 end
 
-function close(varargin) %#ok<INUSD>
+function close(varargin)
 % Do not close the researcher's real figures when production calls close all.
 end
 
