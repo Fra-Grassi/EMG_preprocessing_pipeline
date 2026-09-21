@@ -81,7 +81,8 @@ verifyEqual(testCase, rmfield(out, {'event', 'condition_check_count'}), ...
     rmfield(original, 'event'));
 end
 
-function EMG = run_section(code, EMG, sets)
+function EMG = run_section(code, EMG, sets) %#ok<INUSD>
+% The production section reads sets through eval.
 % Function-handle substitution is local to this evaluation workspace.
 eeg_checkset = @checkset_double; %#ok<NASGU>
 eval(code);

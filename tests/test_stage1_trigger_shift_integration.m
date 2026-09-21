@@ -81,7 +81,7 @@ EMG = recording_fixture();
 sets = settings_fixture(testCase.TestData.output_dir);
 sets.do_shift_triggers = false;
 diagnostics_path = fullfile(sets.rawSET_dir, '001_trigger_shift_diagnostics.mat');
-trigger_shift_diagnostics = 'previous saved diagnostics'; %#ok<NASGU>
+trigger_shift_diagnostics = 'previous saved diagnostics';
 save(diagnostics_path, 'trigger_shift_diagnostics');
 bytes_before = read_bytes(diagnostics_path);
 
@@ -122,12 +122,14 @@ assertEqual(testCase, fieldnames(saved), {'trigger_shift_diagnostics'});
 verifyEqual(testCase, saved.trigger_shift_diagnostics, diagnostics);
 end
 
-function [EMG, trigger_shift_diagnostics] = run_enabled(code, EMG, sets, file, si)
+function [EMG, trigger_shift_diagnostics] = run_enabled(code, EMG, sets, file, si) %#ok<INUSD,STOUT>
+% The production section reads inputs and assigns diagnostics through eval.
 % No shift_triggers or save doubles: evaluate the untouched production code.
 eval(code);
 end
 
-function [EMG, trigger_shift_diagnostics] = run_disabled(code, EMG, sets)
+function [EMG, trigger_shift_diagnostics] = run_disabled(code, EMG, sets) %#ok<INUSD>
+% The production section reads sets through eval.
 file = {'unused.bdf', '001.bdf'}; %#ok<NASGU>
 si = 2; %#ok<NASGU>
 trigger_shift_diagnostics = 'unchanged workspace diagnostics';
@@ -136,7 +138,7 @@ shift_triggers = @unexpected_shift; %#ok<NASGU>
 eval(code);
 end
 
-function varargout = unexpected_shift(varargin) %#ok<STOUT,INUSD>
+function varargout = unexpected_shift(varargin)
 error('test_stage1_trigger_shift_integration:UnexpectedShift', ...
     'Disabled Stage 1 shifting must not call shift_triggers.');
 end
