@@ -81,7 +81,7 @@ The researcher reported on 2026-09-22 that both MATLAB R2024b suites passed and
 that Stage 0 and Stage 2 completed on representative data with the expected
 output. The only Code Analyzer message identified an obsolete suppression in
 `test_validate_settings.m`; it was removed without executable changes in
-`6cea1ed`. A targeted post-cleanup analyzer rerun remains to be confirmed.
+`6cea1ed`. The targeted post-cleanup analyzer check returned no messages.
 
 ## Representative EEGLAB acceptance
 

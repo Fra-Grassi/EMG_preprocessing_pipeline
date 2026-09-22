@@ -49,7 +49,7 @@ In `bipolar` mode, `sets.emg_channel_numbers` is an `n_muscles`-by-2 matrix. Eac
 
 The settings validator will enforce the mode-specific shape and name count. Stage 2 will validate configured indices against the loaded dataset before selecting or subtracting data, then keep `EMG.data`, `EMG.nbchan`, `EMG.chanlocs`, and channel labels mutually consistent. CD-19 does not change the configured subtraction direction, feature calculations, rejection logic, or output schema.
 
-Agent 10 implemented CD-19 in `4e95048`. The researcher reported that the validator and focused production-section tests passed in MATLAB R2024b, and that rerunning Stage 0 and Stage 2 on representative data completed successfully with the expected output. The only analyzer message was an obsolete test suppression, removed without executable changes in `6cea1ed`; its targeted post-cleanup analyzer rerun remains to be confirmed.
+Agent 10 implemented CD-19 in `4e95048`. The researcher reported that the validator and focused production-section tests passed in MATLAB R2024b, and that rerunning Stage 0 and Stage 2 on representative data completed successfully with the expected output. The only initial analyzer message was an obsolete test suppression, removed without executable changes in `6cea1ed`; the targeted post-cleanup analyzer check returned no messages.
 
 ## Rejection accounting (CD-18)
 
