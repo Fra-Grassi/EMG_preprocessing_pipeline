@@ -25,7 +25,7 @@
 % Usage:
 % 1. Edit only Section 0.2: external paths, processing toggles (1/0), and parameters.
 % 2. Section 0.1 automatically sets up internal paths and creates missing output folders.
-% 3. Section 0.3 automatically validates settings; Section 0.4 saves them.
+% 3. Section 0.3 automatically validates settings; Section 0.4 adds metadata and saves them.
 % 4. Run the whole script, or Sections 0.1--0.4 once in order, before later stages.
 %    Keep this script active in the MATLAB Editor. Rerun after changing settings.
 %
@@ -294,6 +294,54 @@ sets.fname_feature_amplitudes = 'feature-amplitudes.csv';
 validate_settings(sets, 'stage0');
 
 %% 0.4 - Save settings
+
+% Capture the environment automatically; Section 0.2 contains only user parameters.
+sets.timestamp = char(datetime('now', 'TimeZone', 'local', ...
+    'Format', 'yyyy-MM-dd''T''HH:mm:ssXXX'));
+sets.operating_system = char(system_dependent('getos'));
+sets.matlab_version = char(version);
+
+% Read declared versions from the configured EEGLAB installation, without
+% executing EEGLAB/plugin code or changing the MATLAB path. Multiple matching
+% files are ambiguous: keep 'unavailable' rather than guess the active version.
+version_files = {'eeg_getversion.m', 'eegplugin_biosig.m', ...
+    'eegplugin_cleanline.m', 'eegplugin_firfilt.m'};
+local_versions = repmat({'unavailable'}, size(version_files));
+for version_idx = 1:numel(version_files)
+    try
+        version_matches = dir(fullfile(sets.eeglab_dir, '**', version_files{version_idx}));
+        if isscalar(version_matches) && ~version_matches.isdir
+            version_source = fileread(fullfile(version_matches.folder, version_matches.name));
+            version_token = regexp(version_source, ...
+                "(?m)^[ \t]*vers[ \t]*=[ \t]*'([^'\r\n]+)'", 'tokens', 'once');
+            if ~isempty(version_token) && ~isempty(strtrim(version_token{1}))
+                local_versions{version_idx} = strtrim(version_token{1});
+            end
+        end
+    catch
+        % Optional local version discovery must not prevent settings saving.
+    end
+end
+sets.eeglab_version = local_versions{1};
+sets.plugin_versions = struct('BIOSIG', local_versions{2}, ...
+    'CleanLine', local_versions{3}, 'FIRfilt', local_versions{4});
+
+sets.pipeline_git_commit = 'unavailable';
+try
+    if isfile(fullfile(sets.project_dir, '.git')) || isfolder(fullfile(sets.project_dir, '.git'))
+        % Avoid shell interpolation of project paths; restore the caller's folder.
+        provenance_original_dir = pwd;
+        provenance_cleanup = onCleanup(@() cd(provenance_original_dir));
+        cd(sets.project_dir);
+        [git_status, git_commit] = system('git rev-parse --verify HEAD 2>&1');
+        if git_status == 0 && ~isempty(regexp(strtrim(git_commit), '^[0-9a-fA-F]{40}$', 'once'))
+            sets.pipeline_git_commit = strtrim(git_commit);
+        end
+    end
+catch
+    % Git and repository metadata are optional.
+end
+clear provenance_cleanup
 
 % Save 'sets' in utilities folder:
 save(fullfile(sets.utilities_dir, 'preprocessing_settings.mat'), 'sets');

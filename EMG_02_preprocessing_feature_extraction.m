@@ -422,6 +422,12 @@ for si = 1:length(file)
         EMG.filepath = sets.processed_dir;
 
         % Save dataset as .set file
+        % Record this SET's creation time, preserving existing scalar metadata.
+        if ~isfield(EMG, 'etc') || ~isstruct(EMG.etc) || ~isscalar(EMG.etc)
+            EMG.etc = struct();
+        end
+        EMG.etc.creation_timestamp = char(datetime('now', 'TimeZone', 'local', ...
+            'Format', 'yyyy-MM-dd''T''HH:mm:ssXXX'));
         EMG = pop_saveset(EMG, 'filename', EMG.filename, 'filepath', EMG.filepath);
         
         fprintf('\nPreprocessed dataset SAVED\n\n');
