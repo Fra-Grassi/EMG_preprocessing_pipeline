@@ -266,10 +266,10 @@ The authoritative information flow is:
 ### 2.1 Validate channel selection and re-referencing
 
 - [x] Approve the explicit `sets.emg_reference_mode = 'single' | 'bipolar'` interface and one-muscle bipolar contract (CD-19).
-- [ ] Implement mode-specific configuration, validation, and Stage 2 channel handling without shape-based inference.
-- [ ] Validate channel indices before selecting or subtracting signals.
-- [ ] Confirm through deterministic tests that `data`, `chanlocs`, channel labels, and `nbchan` remain consistent after selection or derivation.
-- [ ] Document and test the `first channel - second channel` direction for each bipolar muscle pair.
+- [x] Implement mode-specific configuration, validation, and Stage 2 channel handling without shape-based inference.
+- [x] Validate channel indices before selecting or subtracting signals.
+- [x] Confirm through deterministic tests that `data`, `chanlocs`, channel labels, and `nbchan` remain consistent after selection or derivation.
+- [x] Document and test the `first channel - second channel` direction for each bipolar muscle pair.
 
 ### 2.2 Expand regression coverage beyond MAV
 
@@ -321,6 +321,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-22 the researcher reported that the Tier 2.1 settings-validator and production-section channel tests passed in MATLAB R2024b. Stage 0 and Stage 2 also completed successfully on representative data and produced the expected output under the explicit CD-19 channel contract. Agent 10's implementation was integrated as `4e95048`. The only Code Analyzer message identified an obsolete suppression in the validator test; the suppression was removed without executable changes in `6cea1ed`, and its targeted post-cleanup analyzer rerun remains pending.
 
 On 2026-09-21 the researcher reported that both new Tier 2 test suites passed in MATLAB R2024b and that their `assertSuccess` calls completed successfully. Agent 8's tests execute the production condition-label section and Stage 1 trigger-shift orchestration, while Agent 9 extends rejection-accounting coverage for participant-key separation, leading-zero IDs, cumulative CSV readback, and missing feature values on restored rejected rows. Code Analyzer initially reported only test-harness warnings caused by `eval`-based production-section execution and obsolete suppressions. After comment/suppression-only cleanups in `7806e70`, `1e53a07`, and `4711604`, the researcher reran all three targeted analyzer checks and reported no output.
 

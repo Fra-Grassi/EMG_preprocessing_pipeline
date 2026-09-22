@@ -77,6 +77,12 @@ Code Analyzer messages; no new warning is expected from the changed code.
 MATLAB and EEGLAB were unavailable in the implementation environment, so these
 commands remain researcher-run acceptance checks.
 
+The researcher reported on 2026-09-22 that both MATLAB R2024b suites passed and
+that Stage 0 and Stage 2 completed on representative data with the expected
+output. The only Code Analyzer message identified an obsolete suppression in
+`test_validate_settings.m`; it was removed without executable changes in
+`6cea1ed`. A targeted post-cleanup analyzer rerun remains to be confirmed.
+
 ## Representative EEGLAB acceptance
 
 1. In Stage 0, keep the current three-row channel setting and
