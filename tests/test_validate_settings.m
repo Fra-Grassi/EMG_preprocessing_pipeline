@@ -239,7 +239,7 @@ s.recording_layout = 'EEG_64';
 reject(testCase, s, 'chanloc_biosemi_64.elp', 'stage1', '0.1');
 resource = fullfile(s.utilities_dir, 'chanloc_biosemi_64.elp');
 fid = fopen(resource, 'w'); fclose(fid);
-cleanup = onCleanup(@() delete(resource)); %#ok<NASGU>
+cleanup = onCleanup(@() delete(resource));
 validate_settings(s, 'stage1');
 s.recording_layout = 'EEG_128';
 reject(testCase, s, 'chanloc_biosemi_128.ced', 'stage1', '0.1');
