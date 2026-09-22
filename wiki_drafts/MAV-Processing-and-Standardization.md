@@ -2,6 +2,8 @@
 
 This page explains the validated calculation of mean-absolute-value-derived (MAV-derived) EMG features, including waveform correction, bin boundaries, standardization reference populations, optional averaging, and output naming.
 
+The muscle signals entering this workflow are defined earlier by [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md). Channel referencing selects source signals or subtracts electrode pairs; the feature standardization below transforms the later MAV-derived observations using a reference mean and standard deviation.
+
 ## Validated sequence
 
 The approved workflow is:

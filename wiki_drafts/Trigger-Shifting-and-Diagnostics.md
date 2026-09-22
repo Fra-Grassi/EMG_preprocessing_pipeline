@@ -119,6 +119,8 @@ The researcher then confirmed a quick Stage 0 → Stage 1 run after the direct c
 
 The production synthetic suite replaces five EEGLAB operations with controlled test versions so it can verify integration arithmetic and mapping deterministically. The reported actual-data runs add representative end-to-end evidence, but they do not establish that every specialized real EEGLAB edge case listed in the acceptance guide was individually tested.
 
+The researcher also reported [`test_stage1_trigger_shift_integration.m`](../tests/test_stage1_trigger_shift_integration.m) passing in MATLAB R2024b on 2026-09-21, as recorded in the [validation baseline](../PROJECT_PLAN.md#validation-baseline). This synthetic suite exercises production Stage 1 trigger-shift orchestration with controlled substitutes; it adds regression evidence without extending the real-EEGLAB validation claim above.
+
 ## User-facing implications
 
 - Create settings with the current Stage 0 before running Stage 1.

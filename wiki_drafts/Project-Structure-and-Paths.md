@@ -6,6 +6,8 @@ This page explains how the pipeline locates its repository, organizes project-ow
 
 Stage 0 is the pipeline's configuration stage. It collects the researcher's processing choices in a `sets` MATLAB structure, defines the project-owned directories used by later stages, checks the incompatible setting combinations currently covered by the implementation, and saves the settings to `resources/` in both machine-readable and human-readable forms.
 
+For the explicit channel mode, source indices, and muscle labels configured there, see [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md#user-configuration-in-stage-0), including a one-muscle bipolar example and the requirement to save settings with the current Stage 0.
+
 The central path decision in CD-01 is that project-internal paths are anchored to the actual Stage script rather than MATLAB's current working directory. This matters because the pipeline is used both by running a complete script and by running individual MATLAB Editor sections. During section execution in the validated MATLAB R2024b environment, the working directory can refer to a temporary Editor location. A path derived from `pwd` could therefore point outside the project even though the correct script is open.
 
 Instead, Stages 0–2 use the active MATLAB Editor filename to infer the project directory. The relevant stage must consequently be open and active in the Editor when its path-setup section runs. Later MATLAB releases are not claimed as validated merely because the same behavior is expected.
