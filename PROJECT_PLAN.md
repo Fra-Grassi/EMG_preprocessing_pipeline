@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-21
-Latest researcher-tested changes: the Agent 8 and Agent 9 Tier 2 regression suites were reported passing in MATLAB R2024b on 2026-09-21, including successful `assertSuccess` calls. Their test implementations were integrated as `05a170a` and `17b73c2`; later analyzer cleanups changed comments and suppressions only.
+Last updated: 2026-09-22
+Latest researcher-tested implementation: CD-19 channel selection and re-referencing, integrated in `4e95048`; deterministic tests, a representative Stage 0/Stage 2 run, and targeted analyzer checks were reported passing on 2026-09-22.
 
 ## Purpose
 
@@ -283,10 +283,13 @@ The authoritative information flow is:
 
 ### 2.3 Improve run provenance and recoverability
 
-- [ ] Decide how each output should identify the settings snapshot that created it.
-- [ ] Record software/toolbox versions needed to reproduce a run.
-- [ ] Clarify intentional overwrite behavior for SET, rejection-statistics, and feature CSV outputs.
-- [ ] Preserve the current participant-level feature checkpoint behavior unless the researcher explicitly changes that decision.
+- [x] Approve the stable-folder, per-batch run-ID and manifest contract (CD-20).
+- [ ] Generate and archive the Stage 0 run ID, exact settings snapshot, and MAT/text manifest without creating run-specific participant-data folders.
+- [ ] Record MATLAB, operating-system, EEGLAB, relevant-plugin, optional Git, input-file, and output-file provenance without making unavailable optional version data fatal.
+- [ ] Embed run provenance in saved SET files and add a non-key `run_ID` column to rejection-statistics and feature CSVs.
+- [ ] Append new participants to compatible existing cumulative CSVs across processing batches.
+- [ ] Add the default-off `sets.do_overwrite_existing_participant_outputs` policy: reject duplicate participant outputs when disabled and replace only that participant when enabled.
+- [ ] Preserve incremental rejection and feature checkpoint writing across prior and current batches.
 
 ### 2.4 Remove development-only overhead and stale comments
 

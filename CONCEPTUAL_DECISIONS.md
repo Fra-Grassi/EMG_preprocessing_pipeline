@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-09-18
-Latest researcher-tested implementation: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`; all handoff checks reported passing on 2026-09-09.
+Last updated: 2026-09-22
+Latest researcher-tested implementation: CD-19 channel selection and re-referencing, integrated in `4e95048`; deterministic tests, a representative Stage 0/Stage 2 run, and targeted analyzer checks were reported passing on 2026-09-22.
 
 ## Purpose and scope
 
@@ -38,6 +38,21 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
 | CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests and real-data check passed on 2026-09-18 |
 | CD-19 | Configure EMG channel handling explicitly as `single` or `bipolar`; in bipolar mode each row is one muscle and is calculated as first channel minus second channel. | Implemented; deterministic and representative-run validation reported on 2026-09-22 |
+| CD-20 | Identify each Stage 0 processing batch with a run ID while keeping user-selected data folders unchanged; archive a run manifest, tag outputs, append new participants across batches, and replace an existing participant only when explicitly enabled. | Approved; implementation and validation pending |
+
+## Run provenance and cumulative cross-batch outputs (CD-20)
+
+The user remains responsible for choosing the project folders and the subset of participants processed on each occasion. The pipeline must not scatter participant datasets into automatically generated run-specific data folders. Raw SET files, preprocessed SET files, rejection statistics, and feature amplitudes continue to use the configured study-level folders.
+
+Each complete Stage 0 execution generates a filesystem-safe `sets.run_ID` for that settings snapshot and processing batch. Stage 0 continues to save the active `preprocessing_settings.mat` and readable settings text used by later stages. It also archives an immutable MAT and text run manifest under `resources/run_manifests/`, identified by the run ID. Current-settings behavior remains governed by CD-16; no fallback or silent migration is added for older development settings.
+
+The run manifest contains the exact settings, run timestamp and timezone, MATLAB release and version, operating system, EEGLAB version, relevant plugin versions when available, the pipeline Git commit when available, and the selected inputs and generated outputs recorded by Stages 1 and 2. Missing optional Git or plugin version information is recorded as unavailable and may warn, but must not stop preprocessing. Later stages update the manifest for the active run rather than reorganizing participant data.
+
+Every saved SET records its run ID and relevant provenance under `EMG.etc`. Cumulative rejection-statistics and feature CSVs include a `run_ID` metadata column. The feature table retains `subject_ID + condition + trial_number + bin` as its four-row key; `run_ID` identifies provenance and is not an additional scientific join key.
+
+When a cumulative CSV already exists with the expected schema, newly processed participant IDs are appended to its existing participants. The file is still rewritten after each successfully completed participant, so CD-03 and CD-18 checkpoint behavior now protects both earlier batches and completed participants from the current batch. An incompatible existing schema, including a missing required provenance column, causes a clear error without silently migrating or replacing the file.
+
+Stage 0 exposes `sets.do_overwrite_existing_participant_outputs`, defaulting to disabled. With overwriting disabled, an already existing participant SET target or participant ID in a cumulative CSV causes a clear error before that participant's existing output is replaced. With overwriting enabled, that participant's SET output and all of that participant's rows in the relevant cumulative CSV are replaced by the newly processed version and its new run ID. Other participants remain untouched. Ordinary within-run cumulative checkpoint rewriting is not treated as participant replacement.
 
 ## EMG channel selection and re-referencing (CD-19)
 
