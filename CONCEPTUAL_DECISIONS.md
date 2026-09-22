@@ -37,6 +37,17 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
 | CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests and real-data check passed on 2026-09-18 |
+| CD-19 | Configure EMG channel handling explicitly as `single` or `bipolar`; in bipolar mode each row is one muscle and is calculated as first channel minus second channel. | Approved; implementation and validation pending |
+
+## EMG channel selection and re-referencing (CD-19)
+
+Stage 0 will define `sets.emg_reference_mode` as either `single` or `bipolar`, rather than asking Stage 2 to infer the operation from the shape of `sets.emg_channel_numbers`.
+
+In `single` mode, `sets.emg_channel_numbers` is a vector containing one recorded source channel per output muscle, in the same order as `sets.emg_channel_names`. Stage 2 selects those channels without subtraction and preserves their source-channel metadata while applying the configured output labels.
+
+In `bipolar` mode, `sets.emg_channel_numbers` is an `n_muscles`-by-2 matrix. Each row defines one output muscle as `first channel - second channel`, and the corresponding entry in `sets.emg_channel_names` supplies its label. A one-row pair such as `[3 4]` is therefore a valid one-muscle bipolar configuration. Because the result is a derived differential signal, its `chanlocs` entry must use the configured muscle label without falsely inheriting either source electrode's spatial metadata.
+
+The settings validator will enforce the mode-specific shape and name count. Stage 2 will validate configured indices against the loaded dataset before selecting or subtracting data, then keep `EMG.data`, `EMG.nbchan`, `EMG.chanlocs`, and channel labels mutually consistent. CD-19 does not change the configured subtraction direction, feature calculations, rejection logic, or output schema.
 
 ## Rejection accounting (CD-18)
 

@@ -265,12 +265,11 @@ The authoritative information flow is:
 
 ### 2.1 Validate channel selection and re-referencing
 
-- [ ] Resolve the existing single-muscle bipolar ambiguity: Stage 2 treats a single-row channel array as independent channels. The validator rejects a one-name `[3 4]` configuration rather than changing its interpretation. An explicit rereferencing setting is a proposal, not yet an approved interface.
-
-- [ ] Make the recording-system/channel-layout rule unambiguous, including the one-muscle BioSemi case.
+- [x] Approve the explicit `sets.emg_reference_mode = 'single' | 'bipolar'` interface and one-muscle bipolar contract (CD-19).
+- [ ] Implement mode-specific configuration, validation, and Stage 2 channel handling without shape-based inference.
 - [ ] Validate channel indices before selecting or subtracting signals.
-- [ ] Confirm that `chanlocs`, channel labels, and `nbchan` remain consistent after selection.
-- [ ] Document the subtraction direction for each bipolar muscle pair.
+- [ ] Confirm through deterministic tests that `data`, `chanlocs`, channel labels, and `nbchan` remain consistent after selection or derivation.
+- [ ] Document and test the `first channel - second channel` direction for each bipolar muscle pair.
 
 ### 2.2 Expand regression coverage beyond MAV
 
