@@ -29,7 +29,7 @@ if is_stage0
     % Complete current schema, including fields whose values may be inactive.
     need([internal_paths, {'study_name', 'rawBDF_dir', 'eeglab_dir', ...
         'recording_layout', 'condition_triggers', 'condition_names', ...
-        'emg_channel_numbers', 'emg_channel_names', 'do_shift_triggers', ...
+        'emg_reference_mode', 'emg_channel_numbers', 'emg_channel_names', 'do_shift_triggers', ...
         'shift_method', 'shift_markers', 'shift_window', 'shift_threshold', ...
         'shift_minimum_duration_ms', 'filter_type_main', 'filter_cutoff_main', ...
         'filter_cutoff_notch', 'downsample_rate', 'rectify_method', 'epoch_length', ...
@@ -99,6 +99,8 @@ if check_processing
         invalid('condition_names', 'must have the same number of entries as condition_triggers, in matching order.');
     end
     codes('emg_channel_names');
+    text_setting('emg_reference_mode');
+    option('emg_reference_mode', {'single', 'bipolar'});
     need({'emg_channel_numbers'});
     channels = sets.emg_channel_numbers;
     if ~isnumeric(channels) || ~ismatrix(channels) || isempty(channels) || ...
@@ -106,13 +108,20 @@ if check_processing
             any(channels(:) < 1 | channels(:) ~= fix(channels(:)))
         invalid('emg_channel_numbers', 'must be a nonempty matrix of positive integer channel indices.');
     end
-    if size(channels, 1) > 1
-        if size(channels, 2) ~= 2 || numel(sets.emg_channel_names) ~= size(channels, 1)
-            invalid('emg_channel_numbers', 'requires two columns and one emg_channel_names entry per row for bipolar subtraction.');
+    if strcmp(sets.emg_reference_mode, 'single')
+        if ~isvector(channels)
+            invalid('emg_channel_numbers', 'must be a row or column vector in single mode.');
         end
-    elseif numel(sets.emg_channel_names) ~= numel(channels)
-        invalid('emg_channel_names', ['requires one name per channel in a single-row emg_channel_numbers array. ', ...
-            'Stage 2 does not support a single-row bipolar pair for one muscle.']);
+        if numel(sets.emg_channel_names) ~= numel(channels)
+            invalid('emg_channel_names', 'requires one name per selected channel in single mode.');
+        end
+    else
+        if size(channels, 2) ~= 2
+            invalid('emg_channel_numbers', 'must have exactly two columns in bipolar mode.');
+        end
+        if numel(sets.emg_channel_names) ~= size(channels, 1)
+            invalid('emg_channel_names', 'requires one name per channel pair in bipolar mode.');
+        end
     end
 
     option('feature_extraction_method', {'mav'});

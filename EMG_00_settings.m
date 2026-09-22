@@ -100,24 +100,20 @@ sets.condition_triggers = {'121', '221'};
 sets.condition_names = {'unconstrained', 'suppressed'};
 
 % ---- EMG channels ----
-% Specify channel numbers used for each muscle.
-% Format depends on recording system: 
-% - BioSemi (two channels per muscle):      matrix, one row per muscle, one column per channel.
-%                                           (E.g., [channel_1, channel_2; channel_3, channel_4; ...], 
-%                                           where 'channel_1' and 'channel_2' belong to one muscle, 
-%                                           'channel_3' and 'channel_4' to another, etc.).
-% - Brain Vision (one channel per muscle):  1-row array, one element per muscle
-%                                           (E.g., [channel_1, channel_2, ...], 
-%                                           where 'channel_1', 'channel_2', etc. belong to different muscles)
-% NOTE: the difference here is that BioSemi data requires wihtin-muscle re-referencing (i.e., subtracting one muscle
-% channel from the other).
-% Current Stage 2 requires at least two rows for bipolar subtraction. A single-row
-% array selects separate channels, so a one-muscle bipolar pair is not supported.
+% Specify how recorded channels become output muscle channels:
+% - 'single':  select one recorded channel per muscle without subtraction.
+% - 'bipolar': calculate one muscle per row as first channel - second channel.
+sets.emg_reference_mode = 'bipolar';
+
+% Specify the recorded channel numbers in the same muscle order as
+% sets.emg_channel_names.
+% - 'single':  row or column vector with one source channel per muscle.
+% - 'bipolar': n_muscles-by-2 matrix; a 1-by-2 pair is one bipolar muscle.
 sets.emg_channel_numbers = [3, 4;...  % CS
     5, 6;...  % OO
     7, 8];  % ZM
 
-% Cell array of strings specifying ENG channel names (e.g., {'OO', 'ZM'}). 
+% Cell array of character vectors specifying EMG channel names (e.g., {'OO', 'ZM'}).
 % IMPORTANT: names must be in same order as 'emg_channel_numbers'
 sets.emg_channel_names = {'CS', 'OO', 'ZM'};
 

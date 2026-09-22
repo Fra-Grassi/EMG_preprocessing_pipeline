@@ -133,36 +133,43 @@ for si = 1:length(file)
     fprintf('\n\nAdding condition events COMPLETE\n');
     
     %% 2.4.3 - Channel selection and re-referencing
-    % Extract only EMG channels.
-    % If data contains two channels per muscle (BioSemi format), also re-reference channels,
-    % i.e, subtract one channel from the other within each muscle pair (Ch1 - Ch2)
-    
-    % Check if EMG channels are in BioSemi format (one row per muscle)
-    if size(sets.emg_channel_numbers, 1) > 1
-        % Preallocate matrix to store re-referenced data
-        reref_data = zeros(length(sets.emg_channel_names), size(EMG.data,2));
-        
-        % For each indicated muscle, subtract channels
-        for i = 1:length(sets.emg_channel_names)
-            reref_data(i, :) = EMG.data(sets.emg_channel_numbers(i, 1), :) - EMG.data(sets.emg_channel_numbers(i, 2), :);
+    % Validate loaded-dataset channel availability before changing EMG.
+    source_channels = sets.emg_channel_numbers(:);
+    n_recorded_channels = size(EMG.data, 1);
+    if any(source_channels > n_recorded_channels)
+        error('EMG_pipeline:ChannelIndexOutOfRange', ...
+            ['Configured EMG channel indices must not exceed the loaded dataset''s ', ...
+            '%d recorded channels.'], n_recorded_channels);
+    end
+    if ~isempty(EMG.chanlocs) && numel(EMG.chanlocs) < max(source_channels)
+        error('EMG_pipeline:InsufficientChannelLocations', ...
+            ['The loaded dataset contains channel-location metadata for %d channels, ', ...
+            'but configured EMG selection requires channel %d.'], ...
+            numel(EMG.chanlocs), max(source_channels));
+    end
+
+    if strcmp(sets.emg_reference_mode, 'single')
+        selected_channels = sets.emg_channel_numbers(:).';
+        output_data = EMG.data(selected_channels, :, :);
+        if isempty(EMG.chanlocs)
+            output_chanlocs = struct('labels', sets.emg_channel_names);
+        else
+            output_chanlocs = EMG.chanlocs(selected_channels);
+            for i = 1:length(sets.emg_channel_names)
+                output_chanlocs(i).labels = sets.emg_channel_names{i};
+            end
         end
-        
-        % Assign re-referenced data back to EMG struct
-        EMG.data = reref_data;
     else
-        % If not in BioSemi format (only one row, one element per muscle), just extract EMG channels
-        EMG.data = EMG.data(sets.emg_channel_numbers, :);
+        % Each configured pair is explicitly first channel - second channel.
+        output_data = EMG.data(sets.emg_channel_numbers(:, 1), :, :) - ...
+            EMG.data(sets.emg_channel_numbers(:, 2), :, :);
+        output_chanlocs = struct('labels', sets.emg_channel_names);
     end
 
-    % Update channel number and labels
+    % Commit the fully prepared channel representation together.
+    EMG.data = output_data;
     EMG.nbchan = length(sets.emg_channel_names);
-
-    if ~isempty(EMG.chanlocs)
-        EMG.chanlocs = EMG.chanlocs(1:length(sets.emg_channel_names));
-        for i = 1:length(sets.emg_channel_names)
-            EMG.chanlocs(i).labels = sets.emg_channel_names{i};
-        end
-    end
+    EMG.chanlocs = output_chanlocs;
     
     fprintf('\nChannel re-referencing COMPLETE\n\n');
     

@@ -80,20 +80,38 @@ reject(testCase, s, 'condition_triggers');
 s.condition_triggers = {"S 001 ", '002'};
 reject(testCase, s, 'condition_triggers');
 s = testCase.TestData.settings;
+s.emg_reference_mode = 'single';
+s.emg_channel_numbers = [1 2];
+s.emg_channel_names = {'one', 'two'};
+validate_settings(s, 'stage2');
+s.emg_channel_numbers = [1; 2];
+validate_settings(s, 'stage2');
+s.emg_channel_numbers = [1 2; 3 4];
+reject(testCase, s, 'emg_channel_numbers');
 s.emg_channel_numbers = [1 2];
 s.emg_channel_names = {'one'};
-reject(testCase, s, 'emg_channel_names'); % one-muscle bipolar is unsupported
-s.emg_channel_names = {'one', 'two'};
-validate_settings(s, 'stage2'); % same row represents two single channels
+reject(testCase, s, 'emg_channel_names');
+s = testCase.TestData.settings;
+s.emg_reference_mode = 'bipolar';
+s.emg_channel_numbers = [1 2];
+s.emg_channel_names = {'one'};
+validate_settings(s, 'stage2'); % one-muscle bipolar pair
 s.emg_channel_numbers = [1; 2];
 reject(testCase, s, 'emg_channel_numbers');
 s.emg_channel_numbers = [1 2 3; 4 5 6];
 reject(testCase, s, 'emg_channel_numbers');
 s.emg_channel_numbers = [1 2; 3 4];
 s.emg_channel_names = {'one'};
-reject(testCase, s, 'emg_channel_numbers');
+reject(testCase, s, 'emg_channel_names');
 s.emg_channel_numbers = [0 2];
 reject(testCase, s, 'emg_channel_numbers');
+s = testCase.TestData.settings;
+s.emg_reference_mode = 'average';
+reject(testCase, s, 'emg_reference_mode');
+s.emg_reference_mode = "single";
+reject(testCase, s, 'emg_reference_mode');
+s = rmfield(testCase.TestData.settings, 'emg_reference_mode');
+reject(testCase, s, 'emg_reference_mode');
 end
 
 function testWindowsAndUnits(testCase)
@@ -265,6 +283,7 @@ s.eeglab_dir = fullfile(root, 'eeglab');
 s.recording_layout = 'EMG';
 s.condition_triggers = {'S 001 ', '002'};
 s.condition_names = {'first', 'second'};
+s.emg_reference_mode = 'bipolar';
 s.emg_channel_numbers = [1 2; 3 4];
 s.emg_channel_names = {'CS', 'OO'};
 s.do_shift_triggers = false;
