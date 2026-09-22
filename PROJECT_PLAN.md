@@ -283,13 +283,11 @@ The authoritative information flow is:
 
 ### 2.3 Improve run provenance and recoverability
 
-- [x] Approve the stable-folder, per-batch run-ID and manifest contract (CD-20).
-- [ ] Generate and archive the Stage 0 run ID, exact settings snapshot, and MAT/text manifest without creating run-specific participant-data folders.
-- [ ] Record MATLAB, operating-system, EEGLAB, relevant-plugin, optional Git, input-file, and output-file provenance without making unavailable optional version data fatal.
-- [ ] Embed run provenance in saved SET files and add a non-key `run_ID` column to rejection-statistics and feature CSVs.
-- [ ] Append new participants to compatible existing cumulative CSVs across processing batches.
-- [ ] Add the default-off `sets.do_overwrite_existing_participant_outputs` policy: reject duplicate participant outputs when disabled and replace only that participant when enabled.
-- [ ] Preserve incremental rejection and feature checkpoint writing across prior and current batches.
+- [x] Approve the lean settings/SET provenance contract (revised CD-20).
+- [ ] Add the settings timestamp, operating system, MATLAB version, EEGLAB version, available relevant-plugin versions, and optional pipeline Git commit directly to `sets` before its existing MAT/TXT save.
+- [ ] Add one creation timestamp under `EMG.etc` immediately before each Stage 1 raw-SET and Stage 2 preprocessed-SET save.
+- [x] Keep existing data folders, output filenames, CSV schemas, cumulative checkpoint behavior, and researcher-controlled overwriting unchanged.
+- [x] Reject Agent 11 implementation `7de164c`; do not integrate its run IDs, manifests, CSV aggregation/replacement, overwrite setting, helper functions, or related tests.
 
 ### 2.4 Remove development-only overhead and stale comments
 
