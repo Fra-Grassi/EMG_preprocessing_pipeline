@@ -1,26 +1,22 @@
-# EMG Preprocessing Pipeline: Conceptual Documentation
+# Understanding the EMG Preprocessing Pipeline
 
-These pages explain the scientific and technical behavior of the EMG Preprocessing Pipeline for researchers who want to understand what the pipeline does and how to interpret its outputs. They complement the operational instructions in the project [`README.md`](../README.md).
+These pages are for colleagues who want to understand how the pipeline processes EMG recordings and what the resulting values mean. For installation and instructions on running the three stages, start with the [main README](../README.md).
 
-The documentation focuses on implemented behavior. It does not prescribe settings for a new study: channel choices, timing parameters, artifact-rejection thresholds, and other scientific settings remain the researcher's responsibility.
+The pipeline takes continuous recordings, extracts epochs around your events of interest, and summarises muscle activity in time bins using mean absolute value (MAV). Along the way, you choose how to reference the channels, correct event timing, reject trials, correct for baseline activity, and standardize the extracted values. Those choices affect the interpretation of the final table. The settings supplied with the pipeline are examples; you will need to adapt them to your recordings and research question.
 
-## Topics
+## Where to start
 
-- [Project Structure and Paths](Project-Structure-and-Paths.md) explains configuration, project and external paths, output directories, file selection, and MATLAB script-versus-section execution.
-- [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md) explains single-channel and bipolar modes, source-channel ordering, output labels, and channel metadata.
-- [Event Representation and Condition Labels](Event-Representation-and-Condition-Labels.md) explains exact event-code preservation, condition matching, copied condition events, and safe section execution.
-- [Trigger Shifting and Diagnostics](Trigger-Shifting-and-Diagnostics.md) explains fixed, trial-specific, and participant-median latency correction, photodiode detection, fallback behavior, and diagnostic interpretation.
-- [MAV Processing and Standardization](MAV-Processing-and-Standardization.md) explains rectification, waveform baseline correction, binning, standardization reference populations, optional averaging, and feature naming.
-- [Participant-Safe Feature Outputs](Participant-Safe-Feature-Outputs.md) explains participant identity, row keys, rejected-trial representation, cumulative checkpoints, missing values, and the wide feature table.
+The pages roughly follow the order in which you will encounter these choices:
 
-## Pipeline overview
+- [Project Structure and Paths](Project-Structure-and-Paths.md): where to put your files, how settings are saved, and how to run the MATLAB scripts a section at a time.
+- [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md): selecting a recorded muscle channel or calculating the difference between two electrodes.
+- [Event Codes and Condition Labels](Event-Representation-and-Condition-Labels.md): matching the event codes in your recording to your experimental conditions.
+- [Trigger Shifting and Diagnostics](Trigger-Shifting-and-Diagnostics.md): correcting delays between event markers and measured stimulus onset, and checking the photodiode results.
+- [MAV Processing and Standardization](MAV-Processing-and-Standardization.md): how rectification, baseline correction, binning, and z scoring determine the meaning of your EMG measures.
+- [Feature Tables and Rejected Trials](Participant-Safe-Feature-Outputs.md): reading the output columns, identifying trials, and interpreting missing values.
 
-The repository contains three MATLAB stages:
+## How the stages fit together
 
-1. **Stage 0 — configuration.** [`EMG_00_settings.m`](../EMG_00_settings.m) defines the processing configuration, resolves project directories, validates the settings, and saves both a MATLAB settings structure and a readable text snapshot in `resources/`.
-2. **Stage 1 — acquisition import.** [`EMG_01_raw2set_shift_triggers.m`](../EMG_01_raw2set_shift_triggers.m) imports selected BDF recordings through BIOSIG, preserves event codes as character text, optionally corrects trigger latencies, records the filename stem as the participant ID, and saves one raw EEGLAB SET dataset per participant.
-3. **Stage 2 — preprocessing and feature extraction.** [`EMG_02_preprocessing_feature_extraction.m`](../EMG_02_preprocessing_feature_extraction.m) selects or derives muscle channels, performs the configured signal processing and epoching, identifies rejected trials, calculates MAV-derived features, optionally standardizes and averages them, and writes cumulative rejection and feature outputs.
+**Stage 0** saves your settings. **Stage 1** imports the BDF recordings, optionally corrects event timing, and saves one EEGLAB dataset per participant. **Stage 2** processes those datasets and extracts the EMG measures. An EEGLAB dataset is normally saved as a `.set` file; the final feature table is a CSV file that you can take into your statistical software.
 
-An **EEGLAB SET dataset** is electrophysiological data stored in EEGLAB's dataset structure and normally saved as a `.set` file. A **MATLAB section** is a separately runnable block beginning with `%%`; sections can be useful for inspection, but processing sections must be run once and in order.
-
-The v0.1.0 release was validated with the complete MATLAB R2024b test suite (94/94 tests passing) and representative pipeline runs. This does not establish compatibility with every MATLAB, EEGLAB, or plugin version, recording layout, or dataset.
+The pipeline has been tested in MATLAB R2024b. For v0.1.0, all 94 automated tests passed, alongside representative runs on recordings. Some tests use simplified replacements for EEGLAB functions to check individual calculations. These checks help establish that the processing behaves as described, but they do not cover every recording setup or software version. When applying the pipeline to a new study, inspect the signals, trial counts, and output distributions as you would with any preprocessing workflow.

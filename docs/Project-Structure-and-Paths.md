@@ -1,83 +1,61 @@
 # Project Structure and Paths
 
-This page explains how the pipeline locates the repository, separates project-owned outputs from external inputs, and behaves when MATLAB scripts are run as complete files or as individual sections.
+The pipeline keeps imported datasets, processed datasets, and extracted EMG measures in separate folders. Your original BDF recordings can stay wherever you normally store them. This page explains where the pipeline looks for files and where to find the results.
 
 ## Stage 0 and saved settings
 
-Stage 0 collects the researcher's choices in a MATLAB structure named `sets`. It defines internal directories, validates the configuration, records lightweight environment information, and writes two files under `resources/`:
+Stage 0 collects your choices in `sets`, MATLAB's name for the collection of settings used by the pipeline. Running Stage 0 checks those choices and saves two files in `resources/`:
 
-- `preprocessing_settings.mat`, which Stages 1 and 2 load;
-- `preprocessing_settings.txt`, which provides a readable record of the same settings.
+- `preprocessing_settings.mat`, which Stages 1 and 2 read;
+- `preprocessing_settings.txt`, a readable copy you can consult without loading the MATLAB file.
 
-Settings saved by older development versions are not updated automatically. After updating the pipeline or changing a setting, run the current Stage 0 again before running later stages.
+The saved settings also include when they were created and information about the software environment. Keep these files with your analysis records: they help you check which settings you saved. They may contain local paths and study information, so review them before sharing.
 
-Channel configuration is described separately in [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md#configuration-in-stage-0).
+Editing the Stage 0 script alone does not update the settings that later stages use. **Run Stage 0 again after changing a setting.** Do the same after updating the pipeline: older development settings are not updated automatically. For channel examples, see [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md#configuration-in-stage-0).
 
 ## How the project directory is located
 
-Stages 0–2 infer the project directory from the active script in the MATLAB Editor rather than from MATLAB's current working directory. This supports both complete-script and section-level execution, where the current working directory may not be the repository.
+Keep the stage you are running open and active in the MATLAB Editor. The pipeline uses that script's location to find its folders. This avoids relying on MATLAB's current working directory, which can differ when you run individual sections.
 
-The relevant stage script must therefore be open and active when its setup section runs. Internal paths are constructed with MATLAB's `fullfile` function, which uses the platform-appropriate path separator.
+You can therefore move the pipeline folder as a whole without rewriting its internal file paths. The locations of your BDF recordings and EEGLAB installation still need to be set for the computer you are using. This way of locating the project has been tested in MATLAB R2024b; later versions have not yet been confirmed.
 
-This behavior has been validated in MATLAB R2024b. Compatibility with later releases should be checked rather than assumed.
+## Where files are saved
 
-## Project-owned directories
+| Folder | What you will find there |
+| --- | --- |
+| `raw/` | The EEGLAB SET files imported by Stage 1, plus trigger-shifting diagnostics when requested. |
+| `preprocessed/` | Processed SET files for inspection and the optional trial-rejection table. |
+| `extracted_amplitudes/` | The cumulative table of extracted EMG measures. |
+| `resources/` | Channel-location files supplied with the pipeline and the settings saved by Stage 0. |
 
-| Directory               | Role                                                                                                            |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `raw/`                  | Raw EEGLAB SET datasets created by Stage 1 and, when trigger shifting is enabled, trigger-diagnostic MAT files. |
-| `preprocessed/`         | Stage 2 SET checkpoints and the optional trial-rejection statistics table.                                      |
-| `extracted_amplitudes/` | Cumulative feature-amplitude tables written by Stage 2.                                                         |
-| `resources/`            | Channel-location resources and generated settings snapshots.                                                    |
+Stage 0 creates the three output folders if they do not exist. It leaves existing files in place. The `resources/` folder must already be present because it contains files the pipeline needs.
 
-Stage 0 creates `raw/`, `preprocessed/`, and `extracted_amplitudes/` only when they are absent. Rerunning Stage 0 does not delete existing files.
+Later saving steps **can replace files with the same names**. There is no automatic archive of earlier results. Before processing another group of participants or trying a different configuration, choose suitable output filenames or preserve the previous files elsewhere.
 
-This does not provide output versioning. Later save operations can overwrite an existing file when the configured filename is reused. Researchers should preserve outputs from distinct processing occasions in an appropriate external archive or versioned analysis workflow.
+## Locating recordings and EEGLAB
 
-The `resources/` directory is different: it contains required files and must already exist. Stage 0 raises an error rather than constructing an empty replacement.
+In Stage 0, set the paths to your BDF recordings and your EEGLAB installation. Neither needs to be inside the pipeline folder.
 
-## External paths
-
-Two paths remain outside the repository:
-
-- the directory containing source BDF recordings;
-- the local EEGLAB installation.
-
-Both are configured in Stage 0. Raw recordings and toolbox installations are machine- or study-specific resources, so the pipeline does not assume they are stored within the repository.
-
-Stages 1 and 2 use the saved settings and `fullfile` to locate inputs and outputs. Stage 1 writes imported datasets to `raw/`. Stage 2 initially offers `raw/` in its file selector, saves inspection checkpoints and rejection statistics to `preprocessed/`, and writes feature tables to `extracted_amplitudes/`.
+The input folder is also the starting point for the file-selection dialog. Stage 1 initially looks in your configured BDF folder; Stage 2 initially looks in `raw/`. You can browse elsewhere, and the pipeline will use the files you actually select. Cancelling the dialog stops the run before processing participants. If you are running sections manually, stop after cancelling and make a new selection before continuing.
 
 ## File selection and participant names
 
-The configured input directory is the starting location for the Stage 1 or Stage 2 file dialog. Users may browse to another directory; the pipeline loads from the directory returned by the dialog. Cancelling the dialog stops that run before participant processing. During section-level execution, stop after cancellation and make a new selection before continuing.
-
-Stage 1 uses the raw BDF filename stem as the participant ID:
+Stage 1 takes the participant ID from the BDF filename without its extension:
 
 ```text
 001.bdf → '001'
 ```
 
-The text value is saved in `EMG.subject`. Stage 2 uses that saved value rather than parsing the SET filename, so prefixes and leading zeros remain intact even if the SET file is renamed.
+It saves that ID as text in the dataset's subject field (`EMG.subject`). Stage 2 reads the saved ID, so renaming a SET file does not change the participant's identity. Prefixes and leading zeros are preserved.
 
-Filename correctness and uniqueness are the researcher's responsibility. The pipeline does not check for empty or duplicate participant IDs. If a study uses another naming convention, adapt the ID-extraction line in Stage 1 while keeping the result as text. If the raw SET suffix is changed from `_raw`, also adapt Stage 2's `*_raw.set` selection filter.
+Check that your filenames give each participant the intended, unique ID. The pipeline does not detect empty or duplicate IDs. If your naming convention needs more than removing `.bdf`, adapt the ID-extraction line in Stage 1, keeping the result as text.
+
+There is one related detail if you customise output names: changing the raw SET suffix from `_raw` also requires changing Stage 2's `*_raw.set` file-selection filter, which determines which filenames it offers.
 
 ## Complete scripts and individual sections
 
-A complete-script run executes the sections in their written order after clearing the relevant workspace variables. Running one MATLAB section executes only that block and depends on state created by earlier sections.
+You can run each stage as a complete script or use MATLAB's sections to pause and inspect intermediate results. A section is a block of code beginning with `%%` in the Editor.
 
-Project-root inference makes both execution styles locate the same repository, but it does not make sections independent or repeatable. Stage 2 processing is non-idempotent: running a section twice on the same in-memory dataset can apply a transformation twice or duplicate condition events.
+Running the complete script starts with setup and proceeds in order. Running a section executes only that block; it assumes that earlier sections have already prepared the settings and data. Begin with setup and run each section once, following the completion messages.
 
-When running by sections:
-
-- begin with the stage's setup section;
-- run each section once and in order;
-- use completion messages to track what has already run;
-- restart the stage after changing settings or after an interrupted run whose in-memory state is uncertain.
-
-## Practical implications
-
-- Keep the relevant stage script active in the MATLAB Editor during setup.
-- Configure the external BDF and EEGLAB paths for the current machine.
-- Treat generated settings and outputs as analysis records that may contain private paths or study information.
-- Expect normal save operations to replace files with the same configured names.
-- Read participant identifiers as text in downstream software so leading zeros are preserved.
+Repeating a processing section acts on the data currently in memory. For example, it may filter an already filtered signal or add condition events a second time. If an interrupted run leaves you unsure of the current state, restart the stage from the beginning with its input data. After changing settings, rerun Stage 0 and restart the affected processing stage rather than continuing partway through.

@@ -1,28 +1,28 @@
 # EMG Channel Selection and Re-referencing
 
-This page explains how Stage 0 channel settings define the muscle signals produced in Stage 2.
+Before processing the EMG, you need to tell the pipeline which recorded channels belong to each muscle. You can keep individual channels as recorded, or calculate a bipolar signal by subtracting one electrode channel from another. This happens at the start of Stage 2, before filtering and rectification.
 
 ## Why the reference mode is explicit
 
-The same channel-number array can express different intentions. For example, `[3 4]` could mean two independent recorded channels or one pair whose difference represents a muscle. The setting `sets.emg_reference_mode` makes that choice explicit instead of asking Stage 2 to infer it from the array shape.
+A list such as `[3 4]` is ambiguous on its own: it could mean “keep channels 3 and 4” or “subtract channel 4 from channel 3.” The setting `sets.emg_reference_mode` tells the pipeline which operation you intend. This also lets you process just one bipolar muscle without it being mistaken for two separate channels.
 
-Channel selection and bipolar subtraction occur before filtering, rectification, and feature extraction. This operation is separate from later muscle-wise or subject-pooled feature standardization; choosing a channel reference mode does not choose a standardization mode.
+Re-referencing concerns the recorded waveforms. Later [feature standardization](MAV-Processing-and-Standardization.md) concerns the MAV values extracted from those waveforms. You choose these two steps separately.
 
 ## Configuration in Stage 0
 
-Configure these three settings together:
+The three channel settings work together:
 
-| Setting | Meaning |
+| Setting | What to enter |
 | --- | --- |
-| `sets.emg_reference_mode` | Exactly `'single'` or `'bipolar'`. |
-| `sets.emg_channel_numbers` | Positive integer source-channel indices: a row or column vector in single mode, or a matrix with exactly two columns in bipolar mode. |
-| `sets.emg_channel_names` | One muscle label per output channel, in the intended output order. |
+| `sets.emg_reference_mode` | `'single'` to keep individual channels, or `'bipolar'` to subtract pairs. Use single quotes. |
+| `sets.emg_channel_numbers` | The positions of the channels in your recording, arranged as in the examples below. |
+| `sets.emg_channel_names` | A muscle name for each resulting signal, in the same order. Use braces and single quotes as shown below. |
 
-Channel indices are MATLAB **one-based positions** in the loaded dataset: `1` means the first recorded channel. They are positions, not channel labels. Confirm the channel order in each recording before adapting the examples below.
+MATLAB counts channels from **1**: channel 1 is the first channel in the loaded recording. These numbers refer to positions in the dataset, not necessarily the numbers printed on your electrodes or used in their labels. Check the recording's channel order before copying the examples.
 
-### Single mode
+### Keeping individual channels
 
-Single mode selects one recorded source channel per output muscle without subtraction:
+Use `'single'` when you want to select recorded channels without subtracting them:
 
 ```matlab
 sets.emg_reference_mode = 'single';
@@ -30,11 +30,11 @@ sets.emg_channel_numbers = [4 2];
 sets.emg_channel_names = {'CS', 'OO'};
 ```
 
-The first output is source channel 4 labeled `CS`; the second is source channel 2 labeled `OO`. A column vector such as `[4; 2]` gives the same output order. One selected channel with one name is valid.
+Here, the first output signal is channel 4, named `CS`, and the second is channel 2, named `OO`. The pipeline follows your order rather than sorting the channel numbers. You can also write the numbers vertically, as `[4; 2]`, with the same result. To keep just one channel, enter one number and one name.
 
-### Bipolar mode
+### Calculating bipolar signals
 
-In bipolar mode, each row defines one muscle as **first configured channel minus second configured channel**:
+Use `'bipolar'` to define a pair of channels for each muscle. Each row gives **the first channel minus the second channel**:
 
 ```matlab
 sets.emg_reference_mode = 'bipolar';
@@ -42,9 +42,9 @@ sets.emg_channel_numbers = [3 4; 5 6; 7 8];
 sets.emg_channel_names = {'CS', 'OO', 'ZM'};
 ```
 
-The outputs are channel 3 minus 4 labeled `CS`, channel 5 minus 6 labeled `OO`, and channel 7 minus 8 labeled `ZM`. Reversing the indices reverses the derived signal's sign at this step.
+The semicolons separate rows. This example produces three signals: channel 3 minus channel 4 (`CS`), channel 5 minus channel 6 (`OO`), and channel 7 minus channel 8 (`ZM`). Reversing a pair reverses the sign of its signal at this step.
 
-A one-muscle bipolar configuration uses one two-column row and one name:
+For **one bipolar muscle**, use one pair and one name:
 
 ```matlab
 sets.emg_reference_mode = 'bipolar';
@@ -52,35 +52,22 @@ sets.emg_channel_numbers = [3 4];
 sets.emg_channel_names = {'ZM'};
 ```
 
-A column vector `[3; 4]` is not a bipolar pair because bipolar mode requires two columns.
+This gives channel 3 minus channel 4, named `ZM`. Keep both numbers on the same row: `[3; 4]` would make two rows with one number each, which is not a valid bipolar configuration.
 
-## Validation before processing
+## Checks before processing
 
-The settings validator checks:
+Stage 0 checks that you have entered a recognised mode, positive whole-number channel positions, the right arrangement of numbers, and one name per resulting muscle signal. After changing these settings, run Stage 0 again to save them. Settings from older development versions are not filled in automatically; use the current Stage 0 script.
 
-- that the mode is `'single'` or `'bipolar'`;
-- that all indices are positive finite integers;
-- that the channel-number array has the required shape for the mode;
-- that the number of muscle names matches the number of output channels.
+Stage 2 also checks the recording itself. For example, requesting channel 8 from a dataset with only six channels stops processing with an error. If channel-location information is present, it must include all selected channels. An entirely empty set of locations is allowed, but a partially populated one that does not reach the requested channels causes an error. Both checks happen before channel selection changes the dataset.
 
-Stage 2 then performs checks that require the loaded dataset. Every configured index must exist in `EMG.data`. If channel-location metadata are present, they must cover every selected source index. Entirely absent channel locations are allowed; incomplete nonempty metadata cause an error before the dataset is changed.
-
-The validator does not select electrodes, infer the intended reference mode, or assess whether a channel pair is scientifically appropriate. Those choices remain the researcher's responsibility.
+These checks cannot tell whether you have chosen the correct electrodes for your muscle. Repeated channel numbers are also allowed, so check your entries for accidental duplication.
 
 ## Output order and channel metadata
 
-Single-mode output follows the configured vector order. Bipolar output follows matrix row order. `sets.emg_channel_names` supplies labels in the same order, and later feature columns use those names.
+The order of your selected channels, or of your bipolar pairs, becomes the order of the muscle signals. The names in `sets.emg_channel_names` label those signals and are later used in the feature table.
 
-In single mode, each output retains the selected source channel's metadata, including spatial information when present, while its label is replaced with the configured muscle name.
+For an individual channel, the pipeline keeps the information associated with that source channel, including its location when available, and replaces its label with your muscle name. For a bipolar signal, it stores the muscle label only. A difference between two electrodes cannot be assigned either electrode's location as though it were a recording from that point. If the source has no channel locations, single-mode outputs also receive labels only.
 
-In bipolar mode, each output is a derived differential signal. Its channel-location entry contains the configured muscle label but does not inherit either source electrode's spatial location, because neither source location alone represents the derived signal.
+Channel selection leaves the number of samples and trials unchanged. Automated tests and a representative Stage 0/Stage 2 run passed in MATLAB R2024b on 2026-09-22, including tests of single channels, one- and multiple-muscle bipolar configurations, subtraction direction, and channel information. Other MATLAB versions and recording layouts have not all been tested.
 
-Stage 2 keeps the signal array, channel count, channel-location entries, and output labels consistent while preserving the sample and trial dimensions.
-
-## Validation scope and limitations
-
-The channel-selection behavior is covered by deterministic MATLAB R2024b tests and representative Stage 0/Stage 2 runs. The tests include reordered and nonconsecutive single channels, multi-muscle and one-muscle bipolar subtraction, first-minus-second direction, empty or insufficient channel metadata, and out-of-range indices.
-
-This validation does not establish compatibility with every recording layout or prove that an electrode choice is suitable for a new study. Duplicate source indices are not rejected automatically.
-
-Related output organization is described in [Participant-Safe Feature Outputs](Participant-Safe-Feature-Outputs.md#wide-table-organization), and later feature standardization is described in [MAV Processing and Standardization](MAV-Processing-and-Standardization.md).
+For the resulting table layout, see [Feature Tables and Rejected Trials](Participant-Safe-Feature-Outputs.md#wide-table-organization).

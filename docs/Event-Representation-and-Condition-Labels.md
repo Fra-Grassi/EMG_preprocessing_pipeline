@@ -1,63 +1,49 @@
-# Event Representation and Condition Labels
+# Event Codes and Condition Labels
 
-This page explains how imported EEGLAB event types are represented, how condition triggers are matched, how condition-label events are created, and why Stage 2 sections must be run once.
+To extract epochs, the pipeline needs to know which event codes mark your events of interest. Stage 0 is where you associate those codes with condition names. Getting this correspondence right matters: the pipeline can match the codes you provide, but it cannot determine what they meant in your experiment.
 
-## Event representation
+## How imported event codes are stored
 
-An EEGLAB event is a MATLAB structure describing an occurrence in a dataset. Its `type` field contains the event code or name, while fields such as `latency`, `duration`, and `urevent` carry timing and provenance information.
+After importing a BDF file, Stage 1 stores event codes as text. In MATLAB, the form used here is called a *character vector* and is written with single quotes, such as `'121'`.
 
-The pipeline converts supported event types to MATLAB **character vectors**—text written with single quotes—without changing the experimenter's encoded content:
+This conversion accommodates recordings whose event codes arrive as numbers or different types of text:
 
-| Input event type | Output event type |
+| Imported value | Value used by the pipeline |
 | --- | --- |
-| numeric `121` | character `'121'` |
-| character `'121'` | character `'121'` |
-| string `"121"` | character `'121'` |
-| character `'S 121'` | character `'S 121'` |
-| character `'S121'` | character `'S121'` |
+| Number `121` | `'121'` |
+| Text `'121'` or `"121"` | `'121'` |
+| `'S 121'` | `'S 121'` |
+| `'S121'` | `'S121'` |
 
-Prefixes, spacing, leading zeros, and textual names are preserved. For example, `'001'` remains `'001'`, and `'boundary'` remains `'boundary'`. The pipeline does not treat `'121'`, `'S121'`, and `'S 121'` as equivalent.
+Existing text is kept exactly as recorded. Spaces, prefixes, and leading zeros remain, so `'001'` stays `'001'`. Named events such as `'boundary'` also keep their names. Only the way MATLAB stores the code changes; the event's timing and other information remain untouched.
 
-The conversion changes MATLAB representation only. It does not reinterpret the event's experimental meaning and does not add an original-value audit field.
+## Matching codes to conditions
 
-Stage 1 performs this conversion with [fix_EEG_markers.m](../fix_EEG_markers.m) after BIOSIG imports the BDF data and events. Other event fields are not modified by this function.
+Enter your codes in `sets.condition_triggers` and the corresponding names in `sets.condition_names`. For example:
 
-## Configured condition triggers
+```matlab
+sets.condition_triggers = {'121', '221'};
+sets.condition_names = {'condition_A', 'condition_B'};
+```
 
-Users enter `sets.condition_triggers` in Stage 0 as a cell array of character vectors. Each entry must reproduce the experimenter-defined event code exactly, including any prefix, space, or leading zero. Entries in `sets.condition_names` correspond by position.
+The first code belongs to the first name, the second code to the second name, and so on. The names in this example are placeholders for your conditions.
 
-Stage 2 compares event types with configured triggers using exact character comparison. A visually similar but textually different event does not match.
+**Matching is exact.** `'121'`, `'S121'`, and `'S 121'` are three different codes. The pipeline does not remove Brain Vision-style prefixes or spaces to make them match. Before processing a new study, inspect the imported event codes and reproduce them exactly in Stage 0, using single quotes.
 
-This makes trigger representation consistent without imposing a new event-coding scheme. Researchers remain responsible for confirming that the configured codes correspond to the intended experimental events.
+The same rule applies when choosing which markers to use for [trigger shifting](Trigger-Shifting-and-Diagnostics.md).
 
-## Condition-label events
+## What happens to the events in Stage 2
 
-When an event type exactly matches a configured trigger, Stage 2 copies the complete event structure and appends the copy to the event list. It replaces only the copied event's `type` with the corresponding condition name. The original trigger event remains present at this point.
+For each matching trigger, Stage 2 adds a copy of that event and gives the copy your condition name. For example, an event named `'121'` gets a corresponding event named `'condition_A'` at the same time. The original trigger is still present at this point.
 
-Because the complete event is copied first, the condition-label event retains the source latency and other metadata. EEGLAB's event-consistency check is then applied to the expanded event list.
+The copy keeps the original event's latency and other associated information. EEGLAB then checks the event list for consistency. These named copies are the events used to time-lock the epochs; renaming a copy does not shift the epoch's reference time.
 
-The copied condition events become the time-locking labels used for epoching. This mechanism preserves metadata; it does not independently verify the scientific meaning or completeness of the configured trigger list.
+This explains why you may see both a trigger code and a condition name at the same latency when inspecting the events after this step.
 
-## Why sections must be run once
+## Run each section once
 
-Stage 2 processing sections are non-idempotent: running a section again on the same in-memory dataset can change the result a second time.
+If you run Stage 2 one section at a time, execute each section once and in order, beginning with setup. Repeating the condition-label section adds another set of copies. Likewise, repeating a later processing section can apply filtering or baseline correction again to data that have already been processed.
 
-Condition-label creation intentionally has no duplicate guard. If that section is repeated, matching source triggers can be copied again. Other sections can likewise repeat filtering, baseline correction, rejection, or table construction.
+Use the completion messages to keep track of where you are. If you are unsure which steps have run, restart the stage from the beginning with the input dataset rather than continuing with uncertain intermediate results. [Project Structure and Paths](Project-Structure-and-Paths.md#complete-scripts-and-individual-sections) explains section execution in more detail.
 
-When running Stage 2 by sections:
-
-- begin with the stage setup section;
-- run each section once and in order;
-- use the completion messages to track execution;
-- restart from a clean stage state if it is unclear which sections have already run.
-
-## Practical implications
-
-- Configure trigger codes as exact character vectors.
-- Do not assume Brain Vision-style prefixes or spacing will be normalized away.
-- Confirm the imported event values before processing a new study.
-- Treat condition labels as copied source events whose `type` alone is replaced.
-- Use the same exact character codes when configuring [trigger shifting](Trigger-Shifting-and-Diagnostics.md).
-- Never repeat Stage 2 processing sections on the same in-memory dataset unless the stage has been deliberately restarted.
-
-The event conversion and condition-copying behavior are covered by deterministic MATLAB tests, including numeric, character, string, Brain Vision-style, leading-zero, and textual event values.
+Automated MATLAB tests check the event-code conversion and condition copies, including spaces, prefixes, leading zeros, and preservation of timing information. They do not check that your chosen codes identify the intended events in your study.

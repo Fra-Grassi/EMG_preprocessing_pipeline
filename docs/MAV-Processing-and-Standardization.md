@@ -1,61 +1,61 @@
 # MAV Processing and Standardization
 
-This page explains how the pipeline calculates mean-absolute-value-derived (MAV-derived) EMG features, including waveform baseline correction, bin boundaries, standardization reference populations, optional averaging, and output naming.
+The pipeline summarises EMG activity within each time bin using mean absolute value (MAV). Depending on your settings, the saved value can describe rectified activity, a difference from baseline, a ratio to baseline, or a z score. These quantities answer different questions, so it is useful to follow how each is obtained.
 
-The muscle signals entering this workflow are defined by [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md). Channel referencing defines the signals; feature standardization later transforms the extracted observations using a reference mean and standard deviation.
+[Channel selection and re-referencing](EMG-Channel-Selection-and-Re-referencing.md) have already defined the muscle signals by this point. The standardization described here acts on the extracted measures, after waveform processing.
 
 ## Processing sequence
 
-The implemented order is:
+The sequence is:
 
 ```text
 full-wave rectification
-    → trial-wise waveform baseline correction
-    → removal of flagged trials for feature estimation
-    → binned MAV extraction
-    → post-stimulus-derived standardization
-    → optional condition-level trial averaging
+    → baseline correction of each trial's waveform
+    → removal of trials marked for rejection
+    → mean amplitude within each time bin
+    → optional standardization using post-stimulus values
+    → optional averaging of trials within each condition
 ```
 
-Each operation acts at a different level. Baseline correction is calculated separately for each muscle and trial. Binning produces trial × muscle × bin observations. Standardization uses a participant-level reference population, either separately by muscle or pooled across muscles. Optional averaging combines retained trials within condition only after standardization.
-
-Changing this order changes the scientific meaning of the result and requires separate validation.
+Baseline correction is specific to each muscle and trial. Standardization uses values pooled within a participant, either separately for each muscle or across muscles. Keeping these steps separate makes it possible to interpret a change relative to a trial's baseline and, if requested, express the resulting measure on a standardized scale.
 
 ## 1. Full-wave rectification
 
-For a raw EMG sample `x`, full-wave rectification produces `abs(x)`. This prevents positive and negative voltage deflections from cancelling in the within-bin mean. Stage 0 therefore rejects MAV settings unless rectification is enabled with the `abs` method.
+Rectification takes the absolute value of every EMG sample: negative deflections become positive. Without it, positive and negative voltages could cancel when averaged within a time bin. MAV extraction therefore requires `sets.do_rectifying = 1` and `sets.rectify_method = 'abs'`.
 
-Rectification occurs once, before baseline correction. The feature extractor later takes an ordinary arithmetic mean; it does not apply another absolute-value operation.
+Rectification is applied once. The pipeline does not take absolute values again after baseline correction, because that would erase meaningful negative differences from baseline.
 
 ## 2. Trial-wise waveform baseline correction
 
-For each muscle and trial, Stage 2 calculates the mean of the rectified samples in the configured baseline window. The interval is left-inclusive and right-exclusive:
+For each trial and muscle, the pipeline averages the rectified samples in your baseline window. It then applies that baseline mean to the whole epoch. The same baseline is used for every time bin in that trial; it is not estimated afresh within each bin.
+
+You can leave baseline correction disabled, subtract the baseline mean, or divide by it:
+
+| Choice | Calculation at each time point | Meaning of the binned result | Column suffix |
+| --- | --- | --- | --- |
+| No correction | Keep the rectified value. | Raw MAV. | `MAV_raw` |
+| Subtraction | Rectified value minus baseline mean. | Difference from the trial's baseline. | `MAV_difference` |
+| Division | Rectified value divided by baseline mean. | Ratio to the trial's baseline. | `MAV_ratio` |
+
+With subtraction, a negative value means that activity in the bin was below the trial's baseline. Taking its absolute value would lose that distinction. With division, a value of one corresponds to the baseline mean.
+
+The baseline window includes its starting time but excludes its ending time:
 
 ```text
 baseline_start ≤ time < baseline_end
 ```
 
-The resulting trial- and muscle-specific baseline mean is applied to the full epoched waveform before feature bins are extracted. Baseline correction is not recalculated within each bin.
-
-| State | Waveform operation | Unstandardized output meaning | Column suffix |
-| --- | --- | --- | --- |
-| Disabled | Rectified waveform is unchanged. | Raw MAV | `MAV_raw` |
-| Subtraction | Subtract the baseline mean from every time point. | MAV difference from the trial baseline | `MAV_difference` |
-| Division | Divide every time point by the baseline mean. | MAV ratio to the trial baseline | `MAV_ratio` |
-
-A subtractive result can legitimately be negative when activity in a bin is below its trial baseline. No second `abs` is applied, because that would turn a below-baseline difference into a positive magnitude and change its meaning.
-
-Division by a zero, nonfinite, or otherwise unusable baseline mean follows MATLAB's native arithmetic. The pipeline does not silently replace or repair the denominator. Researchers should inspect such values as a data-quality issue.
+If you use division, inspect the baseline values carefully. A zero or unusable baseline mean is not replaced automatically; MATLAB's ordinary arithmetic applies, potentially producing infinite or missing values. Such results need attention during data-quality checks.
 
 ## 3. Binned features from retained trials
 
-Artifact flags are established before waveform baseline correction. The optional preprocessed SET checkpoint retains flagged epochs for inspection, but flagged trials are removed before feature extraction and standardization.
+Trials are marked for rejection before baseline correction. The optional preprocessed SET file keeps the marked epochs so that you can inspect them, but those trials are removed before the EMG measures are calculated.
 
-For every retained trial, muscle, and bin, the feature is the ordinary mean of corrected waveform samples within that bin. The result is called MAV-derived because the waveform was fully rectified before baseline correction, not because the extractor takes another absolute value.
+For each remaining trial and muscle, the pipeline takes the mean of the baseline-corrected waveform within each bin. The measures are called MAV-derived because the signal was rectified before baseline correction. No further absolute-value operation is applied.
 
-Stage 2 creates one pre-stimulus bin of the configured duration and as many post-stimulus bins as fit exactly into the post-stimulus epoch. The post-stimulus duration must be an integer multiple of the bin duration.
+There is one pre-stimulus bin and a series of post-stimulus bins, all with your chosen duration. The post-stimulus epoch must contain a whole number of bins. Each sample is counted once: a sample on a shared boundary belongs to the later bin, while the final sample of the epoch is included in the last bin.
 
-Bins are left-inclusive and right-exclusive, except for the final post-stimulus bin, which includes its right endpoint. For a bin duration `D`:
+For bin duration `D`, the intervals are:
 
 ```text
 pre-stimulus bin:  [-D, 0)
@@ -65,42 +65,40 @@ post bin 2:        [D, 2D)
 final post bin:    [end-D, end]
 ```
 
-This convention counts a shared boundary sample once while retaining the final epoch sample.
-
-If the baseline-correction window exactly matches the pre-stimulus feature bin, that bin's mean should be approximately zero after subtraction or approximately one after division, apart from floating-point precision. This identity does not apply when the two windows differ.
+Here, `[` means the endpoint is included and `)` means it is excluded. If the baseline-correction window is exactly the same as the pre-stimulus bin, that bin's mean should be zero after subtraction or one after division, apart from small numerical rounding differences. If the windows differ, there is no reason to expect those values.
 
 ## 4. Post-stimulus-derived standardization
 
-Only finite feature observations from retained post-stimulus bins estimate the standardization parameters. The pre-stimulus bin is excluded from the reference population but is transformed after the parameters are estimated.
-
-For reference observations `y`:
+Standardization expresses each extracted value relative to a participant's distribution of retained post-stimulus values:
 
 ```text
-z = (feature - mean(y)) / std(y)
+z = (value − reference mean) / reference standard deviation
 ```
 
-MATLAB's sample-standard-deviation convention is used: `std(..., 0)`, with denominator `n - 1`. A reference population must contain at least two finite observations and have a finite, nonzero standard deviation.
+The pre-stimulus bin is kept in the output, but it does not contribute to the reference mean or standard deviation. Once those are estimated from post-stimulus observations, the same transformation is applied to every bin, including the pre-stimulus bin.
 
-Two alternative modes are available:
+You can choose between two reference distributions:
 
-- **Muscle-wise standardization** estimates a separate mean and sample standard deviation for each muscle within a participant. It pools retained trials, conditions, and post-stimulus bins for that muscle.
-- **Subject-pooled standardization** estimates one mean and sample standard deviation for the participant. It pools muscles as well as retained trials, conditions, and post-stimulus bins.
+- **Muscle-wise standardization:** calculate a separate mean and standard deviation for each muscle within each participant, pooling retained trials, conditions, and post-stimulus bins for that muscle.
+- **Subject-pooled standardization:** calculate one mean and standard deviation per participant, pooling muscles as well as retained trials, conditions, and post-stimulus bins.
 
-These modes define different scientific reference populations. They are mutually exclusive alternatives, not sequential transformations.
+For muscle-wise z scores, a value is therefore expressed relative to that muscle's post-stimulus distribution across conditions. For subject-pooled z scores, it is expressed relative to the participant's pooled distribution across muscles. Choose one approach; the pipeline does not apply both in sequence.
+
+Only finite values contribute to the reference distribution. There must be at least two, and their standard deviation must be finite and greater than zero. The calculation uses the sample standard deviation, with denominator `n − 1`.
 
 ## 5. Standardization before optional averaging
 
-Standardization is performed on trial-level features before optional condition-level averaging. Stage 2 carries the unstandardized and standardized arrays separately into the averaging step and averages each within condition.
+If you enable both standardization and condition averaging, the pipeline first standardizes the trial-level values and then averages the retained trials within each condition. It saves averages of the unstandardized values and, when enabled, averages of the z scores.
 
-Averaging first would change the number and variance of observations used to estimate the reference distribution. It would therefore define a different normalization.
+The order matters. Estimating a mean and standard deviation from condition averages would use fewer observations and a different variance from estimating them across individual trials. It would produce a different normalization.
 
-Rejected trials contribute to neither the unstandardized features, the standardization parameters, nor condition averages. If rejected rows are requested, they are restored only after calculation and contain missing values in every MAV-derived column.
+Rejected trials contribute to none of these calculations. If you ask to keep rejected rows in a table without trial averaging, those rows are added afterwards with missing values, as described in [Feature Tables and Rejected Trials](Participant-Safe-Feature-Outputs.md).
 
 ## 6. Wide output columns
 
-The first four columns are `subject_ID`, `condition`, `trial_number`, and `bin`. Feature columns remain wide. For each muscle, the method-specific unstandardized column is followed immediately by its standardized partner when standardization is enabled.
+The first four columns identify the participant, condition, trial, and bin: `subject_ID`, `condition`, `trial_number`, and `bin`. Each muscle then has a column for its unstandardized measure and, if requested, an adjacent column for its z score.
 
-For a hypothetical muscle named `M1`, possible pairs include:
+For a muscle named `M1`, possible pairs are:
 
 ```text
 M1_MAV_raw,        M1_MAV_z_muscle
@@ -108,12 +106,8 @@ M1_MAV_difference, M1_MAV_z_muscle
 M1_MAV_ratio,      M1_MAV_z_subject
 ```
 
-Only the pair appropriate to the selected baseline and standardization settings is written. If standardization is disabled, each muscle has only its unstandardized `MAV_raw`, `MAV_difference`, or `MAV_ratio` column.
+The first suffix records whether you used no baseline correction, subtraction, or division. The z-score suffix records muscle-wise or subject-pooled standardization. Only the columns matching your settings are written. With standardization disabled, only the unstandardized column is saved for each muscle.
 
-When rejected rows are restored, their key columns remain populated and all MAV-derived columns are missing.
+## How the calculations were checked
 
-## Validation scope
-
-The numerical workflow is covered by deterministic MATLAB R2024b tests for known raw, subtractive, and divisive values; bin boundaries; negative baseline differences; muscle-wise and subject-pooled standardization; pre-stimulus exclusion from reference estimation; pooling across conditions; standardization before averaging; invalid reference populations; output ordering; and rejected-row missingness.
-
-The final production calculations remain visible inline in Stage 2. Test-only helper implementations under `tests/helpers/` provide numerical references but are not production dependencies. Validation of those calculations does not replace inspection of signal quality, artifact settings, and output distributions for each dataset.
+The calculations were tested in MATLAB R2024b using examples with known results. These checks cover the baseline methods, negative differences, bin boundaries, both standardization methods, exclusion of pre-stimulus values from reference estimation, averaging order, and missing values for rejected trials. They check the numerical steps; inspecting signal quality and the resulting distributions remains part of applying the pipeline to your own recordings.
