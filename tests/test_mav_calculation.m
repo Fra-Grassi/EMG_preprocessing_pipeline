@@ -2,6 +2,15 @@ function tests = test_mav_calculation
 tests = functiontests(localfunctions);
 end
 
+function setupOnce(testCase)
+testCase.TestData.original_path = path;
+addpath(fullfile(fileparts(mfilename('fullpath')), 'helpers'));
+end
+
+function teardownOnce(testCase)
+path(testCase.TestData.original_path);
+end
+
 function testRawDifferenceAndRatioValues(testCase)
 times = -1000:500:2000;
 raw_data = reshape([-2, 2, -6, 8, -10, 12, -14], 1, [], 1);

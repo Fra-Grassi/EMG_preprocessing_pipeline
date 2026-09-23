@@ -10,7 +10,7 @@ The related publication is:
 
 > Rutkowska, J. M., Ghilardi, T., Vacaru, S. V., van Schaik, J. E., Meyer, M., Hunnius, S., & Oostenveld, R. (2024). Optimal processing of surface facial EMG to identify emotional expressions: A data-driven approach. *Behavior Research Methods, 56*, 7331–7344. <https://doi.org/10.3758/s13428-024-02421-4>
 
-Substantial repository-specific modifications include removal of the earlier dyad-oriented data model; reproducible project-root and settings validation; exact character event handling; tested fixed, trial-specific, and participant-median trigger correction with diagnostics; explicit single and bipolar EMG channel handling; participant-safe output keys and checkpoints; corrected and deterministically tested MAV baseline, binning, standardization, and missing-row behavior; and lightweight settings and SET provenance metadata.
+Substantial repository-specific modifications include reproducible project-root and settings validation; exact character event handling; tested fixed, trial-specific, and participant-median trigger correction with diagnostics; explicit single and bipolar EMG channel handling; participant-safe output keys and checkpoints; corrected and deterministically tested MAV baseline, binning, standardization, and missing-row behavior; and lightweight settings and SET provenance metadata.
 
 These modifications are maintained in this repository. They do not imply that the upstream repository authors or publication authors maintain, approve, or endorse this project.
 

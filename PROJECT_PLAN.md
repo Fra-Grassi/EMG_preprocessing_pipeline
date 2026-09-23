@@ -243,15 +243,15 @@ With four total agent slots, including Agent 0:
 5. Run Task T1.2-C after its dependencies and Gate S decisions are satisfied; no separate condition-mapping integration task is needed.
 6. Agent 0 adds a unified event/trigger test runner if warranted, coordinates user-run MATLAB/EEGLAB validation, updates the decision ledger, and integrates approved commits into `main`.
 
-### Wiki knowledge-base task
+### Conceptual documentation task
 
-Delegate wiki preparation to a documentation-only Wiki Curator agent. This is safely separable from implementation and reduces Agent 0's context load, but scientific authority remains with the researcher and Agent 0.
+Delegate conceptual-documentation preparation to a documentation-only Wiki Curator agent. This is safely separable from implementation and reduces Agent 0's context load, but scientific authority remains with the researcher and Agent 0.
 
-- **Objective:** Transform approved conceptual material into a navigable future-wiki outline and draft pages without inventing methods or decisions.
-- **Relevant files/modules:** Read-only access to `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, relevant MATLAB comments, and tests; new output only under a dedicated `wiki_drafts/` directory unless Agent 0 specifies another location.
-- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Event representation may cite implemented and validated CD-11/CD-12, while trigger-shifting pages remain draft until Tier 1.2 decisions are integrated.
+- **Objective:** Transform approved conceptual material into navigable researcher-facing documentation without inventing methods or decisions.
+- **Relevant files/modules:** Read-only access to `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, relevant MATLAB comments, and tests; public conceptual pages live under `docs/`.
+- **Dependencies:** The two coordination documents should be committed so the curator works from a stable baseline. Documentation must describe only implemented decisions and state genuine limitations without presenting planned behavior as final.
 - **Likely conflicts:** None if the curator does not edit `PROJECT_PLAN.md`, `CONCEPTUAL_DECISIONS.md`, MATLAB code, or tests. Agent 0 should integrate conceptual updates before asking the curator to refresh drafts.
-- **Validation criteria:** Every technical statement maps to a decision ID, code location, test, or explicitly labeled unresolved question; implementation detail is separated from scientific rationale; no sensitive paths/data are included; citations are not fabricated; Agent 0 and the researcher review the drafts before publication.
+- **Validation criteria:** Every technical statement maps to a decision ID, code location, test, or explicitly labeled unresolved question; implementation detail is separated from scientific rationale; no sensitive paths/data are included; citations are not fabricated; Agent 0 and the researcher review the documentation before publication.
 
 The authoritative information flow is:
 
@@ -259,7 +259,7 @@ The authoritative information flow is:
 2. `CONCEPTUAL_DECISIONS.md` owns approved scientific and engineering decisions.
 3. Worker agents cite decision IDs in their handoffs and submit new issues as decision proposals rather than editing the decision ledger.
 4. Agent 0 resolves proposals with the researcher, updates the ledger, and only then asks the Wiki Curator to incorporate them.
-5. Wiki drafts are explanatory derivatives, never the source of truth for implementation.
+5. The pages under `docs/` are explanatory derivatives, never the source of truth for implementation.
 
 ## Tier 2: important maintainability and validation improvements
 
@@ -301,14 +301,14 @@ The authoritative information flow is:
 ### 3.1 Build user-facing documentation
 
 - [x] Create a concise README covering requirements, folder layout, configuration, stage order, and expected outputs.
-- [ ] Convert `CONCEPTUAL_DECISIONS.md` into focused GitHub wiki pages after the concepts stabilize.
+- [x] Promote the conceptual drafts into focused, versioned researcher documentation under `docs/`.
 - [ ] Add worked examples using synthetic or non-sensitive data only.
 
 ### 3.2 Prepare a reproducible release
 
-- [ ] Choose a public versioning convention and update the script version headers consistently.
+- [x] Use semantic versioning, beginning with public version `v0.1.0`; reserve `v1.0.0` for completion of the lower-tier release goals. The three stage headers and citation metadata use `0.1.0`.
 - [x] Add citation, license, authorship, and upstream-attribution information.
-- [ ] Define a release checklist including MATLAB tests and representative EEGLAB integration runs.
+- [x] Complete the lean `v0.1.0` release checks: sanitized public settings, user and developer documentation, citation and attribution files, a passing 94-test MATLAB R2024b suite, and representative EEGLAB runs across all stages.
 
 ## Recommended execution order
 

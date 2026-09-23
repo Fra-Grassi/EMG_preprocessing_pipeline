@@ -1,8 +1,8 @@
 % ---------------------------------------------------------------------------------------------------------------------
 % EMG Preprocessing Pipeline
-% Version: 2
+% Version: 0.1.0
 % author: Francesco Grassi
-% date: August 2026
+% date: September 2026
 %
 % For questions or issues, contact:
 % francesco.grassi@uni-goettingen.de

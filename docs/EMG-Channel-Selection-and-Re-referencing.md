@@ -67,8 +67,6 @@ Stage 2 then performs checks that require the loaded dataset. Every configured i
 
 The validator does not select electrodes, infer the intended reference mode, or assess whether a channel pair is scientifically appropriate. Those choices remain the researcher's responsibility.
 
-Settings saved before the explicit reference-mode field was introduced are not supported. Reconfigure and rerun the current Stage 0 rather than relying on an older settings file.
-
 ## Output order and channel metadata
 
 Single-mode output follows the configured vector order. Bipolar output follows matrix row order. `sets.emg_channel_names` supplies labels in the same order, and later feature columns use those names.

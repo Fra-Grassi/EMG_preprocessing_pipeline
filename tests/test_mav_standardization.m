@@ -2,6 +2,15 @@ function tests = test_mav_standardization
 tests = functiontests(localfunctions);
 end
 
+function setupOnce(testCase)
+testCase.TestData.original_path = path;
+addpath(fullfile(fileparts(mfilename('fullpath')), 'helpers'));
+end
+
+function teardownOnce(testCase)
+path(testCase.TestData.original_path);
+end
+
 function testMuscleStandardizationUsesPostStimulusBins(testCase)
 [features, bin_edges] = standardization_fixture();
 

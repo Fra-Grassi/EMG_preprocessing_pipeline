@@ -4,12 +4,12 @@ This page explains how the pipeline locates the repository, separates project-ow
 
 ## Stage 0 and saved settings
 
-Stage 0 collects the researcher's choices in a MATLAB structure named `sets`. It defines internal directories, validates the configuration, records lightweight environment information, and writes two ignored files under `resources/`:
+Stage 0 collects the researcher's choices in a MATLAB structure named `sets`. It defines internal directories, validates the configuration, records lightweight environment information, and writes two files under `resources/`:
 
 - `preprocessing_settings.mat`, which Stages 1 and 2 load;
 - `preprocessing_settings.txt`, which provides a readable record of the same settings.
 
-Settings saved by older development versions are not migrated or repaired automatically. After updating the pipeline or changing a setting, run the current Stage 0 again before running later stages.
+Settings saved by older development versions are not updated automatically. After updating the pipeline or changing a setting, run the current Stage 0 again before running later stages.
 
 Channel configuration is described separately in [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md#configuration-in-stage-0).
 
@@ -23,18 +23,18 @@ This behavior has been validated in MATLAB R2024b. Compatibility with later rele
 
 ## Project-owned directories
 
-| Directory | Role |
-| --- | --- |
-| `raw/` | Raw EEGLAB SET datasets created by Stage 1 and, when trigger shifting is enabled, trigger-diagnostic MAT files. |
-| `preprocessed/` | Stage 2 SET checkpoints and the optional trial-rejection statistics table. |
-| `extracted_amplitudes/` | Cumulative feature-amplitude tables written by Stage 2. |
-| `resources/` | Tracked channel-location resources and ignored generated settings snapshots. |
+| Directory               | Role                                                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `raw/`                  | Raw EEGLAB SET datasets created by Stage 1 and, when trigger shifting is enabled, trigger-diagnostic MAT files. |
+| `preprocessed/`         | Stage 2 SET checkpoints and the optional trial-rejection statistics table.                                      |
+| `extracted_amplitudes/` | Cumulative feature-amplitude tables written by Stage 2.                                                         |
+| `resources/`            | Channel-location resources and generated settings snapshots.                                                    |
 
 Stage 0 creates `raw/`, `preprocessed/`, and `extracted_amplitudes/` only when they are absent. Rerunning Stage 0 does not delete existing files.
 
 This does not provide output versioning. Later save operations can overwrite an existing file when the configured filename is reused. Researchers should preserve outputs from distinct processing occasions in an appropriate external archive or versioned analysis workflow.
 
-The `resources/` directory is different: it contains required tracked files and must already exist. Stage 0 raises an error rather than constructing an empty replacement.
+The `resources/` directory is different: it contains required files and must already exist. Stage 0 raises an error rather than constructing an empty replacement.
 
 ## External paths
 

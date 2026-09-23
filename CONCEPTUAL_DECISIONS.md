@@ -5,7 +5,7 @@ Latest researcher-tested implementation: CD-20 lightweight settings and SET prov
 
 ## Purpose and scope
 
-This document records why the pipeline behaves as it does. It is source material for future GitHub wiki documentation and shared context for development agents. It should distinguish three things clearly:
+This document records why the pipeline behaves as it does. It is source material for the researcher-facing documentation under `docs/` and shared context for development agents. It should distinguish three things clearly:
 
 1. decisions already implemented and validated;
 2. assumptions inherited from the current pipeline or its upstream sources;
@@ -15,7 +15,7 @@ The pipeline is derived from the EEGLAB-based workflow described by Rutkowska et
 
 ## Decision register
 
-Agents should cite these identifiers in implementation handoffs and wiki drafts. Detailed rationale appears in the corresponding sections below.
+Agents should cite these identifiers in implementation handoffs and documentation updates. Detailed rationale appears in the corresponding sections below.
 
 | ID | Approved decision | Status |
 | --- | --- | --- |
@@ -136,7 +136,7 @@ Users define their own settings using the current Stage 0 before running later s
 - Worker agents should read both files at the assigned baseline commit and cite relevant decision IDs in their final handoff.
 - Workers should report a proposed decision with its rationale, alternatives, scientific impact, and validation implications; they should not silently add it to this register.
 - Agent 0 discusses material proposals with the researcher, updates the register after approval, and communicates the new ID to implementation and documentation agents.
-- Wiki drafts may paraphrase approved entries but must link each substantive claim to a decision ID or mark it as unresolved.
+- Researcher-facing documentation may paraphrase approved entries but must remain consistent with them and identify unresolved behavior plainly.
 
 ## Pipeline stages and data ownership
 
