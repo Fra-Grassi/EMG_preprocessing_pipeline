@@ -6,7 +6,7 @@ These pages are explanatory derivatives, not project specifications. The authori
 
 ## What this knowledge base is—and is not
 
-The pages describe why established behavior exists, how it is represented in the implementation, and what that behavior means for users and downstream analysis. They are not instructions for installing software, configuring a new study, or running the pipeline from beginning to end. A future user guide or README will cover those operational tasks.
+The pages describe why established behavior exists, how it is represented in the implementation, and what that behavior means for users and downstream analysis. They are not instructions for installing software, configuring a new study, or running the pipeline from beginning to end. See the project [`README.md`](../README.md) for those operational tasks.
 
 Planned or unresolved behavior is not presented here as finalized. The shared settings validator (CD-10), file-selection and participant-identity behavior (CD-17), rejection-accounting checkpoints (CD-18), and explicit EMG channel-selection contract (CD-19) are implemented, with researcher-reported validation recorded in the plan. Trigger shifting is documented because CD-13 through CD-16 define its approved and integrated behavior; the validation evidence and its limits are stated explicitly on that page. The case in which every configured condition has zero trials remains unresolved beyond CD-18's rule for an individually absent condition.
 
