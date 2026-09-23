@@ -284,8 +284,8 @@ The authoritative information flow is:
 ### 2.3 Improve run provenance and recoverability
 
 - [x] Approve the lean settings/SET provenance contract (revised CD-20).
-- [ ] Add the settings timestamp, operating system, MATLAB version, EEGLAB version, available relevant-plugin versions, and optional pipeline Git commit directly to `sets` before its existing MAT/TXT save.
-- [ ] Add one creation timestamp under `EMG.etc` immediately before each Stage 1 raw-SET and Stage 2 preprocessed-SET save.
+- [x] Add the settings timestamp, operating system, MATLAB version, EEGLAB version, available relevant-plugin versions, and optional pipeline Git commit directly to `sets` before its existing MAT/TXT save (Agent 12, integrated as `16e719a`; MATLAB validation pending).
+- [x] Add one creation timestamp under `EMG.etc` immediately before each Stage 1 raw-SET and Stage 2 preprocessed-SET save (Agent 12, integrated as `16e719a`; representative EEGLAB validation pending).
 - [x] Keep existing data folders, output filenames, CSV schemas, cumulative checkpoint behavior, and researcher-controlled overwriting unchanged.
 - [x] Reject Agent 11 implementation `7de164c`; do not integrate its run IDs, manifests, CSV aggregation/replacement, overwrite setting, helper functions, or related tests.
 

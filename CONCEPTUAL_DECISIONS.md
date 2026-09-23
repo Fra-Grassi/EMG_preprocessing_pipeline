@@ -38,7 +38,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
 | CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests and real-data check passed on 2026-09-18 |
 | CD-19 | Configure EMG channel handling explicitly as `single` or `bipolar`; in bipolar mode each row is one muscle and is calculated as first channel minus second channel. | Implemented; deterministic and representative-run validation reported on 2026-09-22 |
-| CD-20 | Keep provenance lightweight: save environment metadata inside the existing Stage 0 `sets` structure and add a creation timestamp to each Stage 1 or Stage 2 SET immediately before saving. | Approved; implementation and validation pending |
+| CD-20 | Keep provenance lightweight: save environment metadata inside the existing Stage 0 `sets` structure and add a creation timestamp to each Stage 1 or Stage 2 SET immediately before saving. | Implemented; MATLAB and representative-data validation pending |
 
 ## Lightweight settings and SET provenance (CD-20)
 
@@ -49,6 +49,8 @@ The enriched `sets` structure is saved through the existing `preprocessing_setti
 Immediately before Stage 1 saves a raw SET and Stage 2 saves a preprocessed SET, the script records that file's creation timestamp in `EMG.etc`. Stage 2 may replace the timestamp inherited from its raw input so the saved preprocessed SET reports its own creation time. No other SET provenance structure is required.
 
 Existing folder choices, output filenames, cumulative CSV behavior, checkpoint timing, and overwrite behavior remain unchanged. Researchers are responsible for organizing processing occasions and deciding how to handle pre-existing outputs. This decision supersedes the earlier unimplemented run-ID/manifest proposal. Agent 11's corresponding implementation commit `7de164c` is rejected and must not be integrated.
+
+Agent 12 implemented this lean contract in commit `16e719a`. Static scope and line-ending checks passed; the focused MATLAB R2024b tests and representative EEGLAB acceptance procedure remain to be run by the researcher.
 
 ## EMG channel selection and re-referencing (CD-19)
 
