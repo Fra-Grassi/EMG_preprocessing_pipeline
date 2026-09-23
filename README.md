@@ -8,7 +8,7 @@ The pipeline was adapted and expanded from [`TommasoGhilardi/EMG_Pipelines`](htt
 
 Deterministic tests and representative pipeline runs have been reported passing in MATLAB R2024b. Representative evidence includes Stage 1 runs with variable and median trigger shifting and Stage 0/Stage 2 runs under the explicit channel-selection contract. The test suite also exercises calculations and orchestration with synthetic data and controlled substitutes for selected EEGLAB operations.
 
-This evidence does not establish compatibility with every MATLAB or EEGLAB version, every plugin release, recording layout, or dataset. The lightweight settings and SET provenance fields are implemented, but the current project record still lists their focused MATLAB and representative-data validation as pending. Review warnings, diagnostics, intermediate SET files, and output tables for every new dataset.
+This evidence does not establish compatibility with every MATLAB or EEGLAB version, every plugin release, recording layout, or dataset. The lightweight settings and SET provenance fields have also passed their focused MATLAB checks and representative Stage 0, Stage 1, and Stage 2 runs. Review warnings, diagnostics, intermediate SET files, and output tables for every new dataset.
 
 The settings in Stage 0 are examples and configuration interfaces, not universal scientific defaults. In particular, artifact-rejection thresholds must be selected by the researcher for each dataset according to data quality and the research question.
 

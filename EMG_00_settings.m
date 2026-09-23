@@ -71,12 +71,12 @@ end
 
 % ---- Study Name ----
 % Specify study name as string (e.g., 'my_fancy_study');
-sets.study_name = 'hyper_lol_2';
+sets.study_name = 'example_study';
 
 % ---- External folder paths ----
 % Specify the external paths to the raw BDF data and EEGLab as strings.
-sets.rawBDF_dir = 'N:\ANAP\01_data\HyperLOL2\Raw Data\EMG\merged\';  % path to raw BDF data folder
-sets.eeglab_dir = 'N:\ANAP\02_home\Francesco\Matlab plugins\eeglab2025.1.0\';  % path to EEGLab toolbox 
+sets.rawBDF_dir = 'EDIT_PATH_TO_RAW_BDF_FILES';  % path to raw BDF data folder
+sets.eeglab_dir = 'EDIT_PATH_TO_EEGLAB';  % path to EEGLab toolbox
 
 % ---- Channel layout ----
 % String defining the channel layout used during the recording.

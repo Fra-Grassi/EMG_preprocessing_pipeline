@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Coordination Plan
 
-Last updated: 2026-09-22
-Latest researcher-tested implementation: CD-19 channel selection and re-referencing, integrated in `4e95048`; deterministic tests, a representative Stage 0/Stage 2 run, and targeted analyzer checks were reported passing on 2026-09-22.
+Last updated: 2026-09-23
+Latest researcher-tested implementation: CD-20 lightweight settings and SET provenance, integrated in `16e719a`; the focused MATLAB checks and representative Stage 0, Stage 1, and Stage 2 runs were reported passing on 2026-09-23.
 
 ## Purpose
 
@@ -122,7 +122,7 @@ Scientific decision: the intended photodiode threshold and minimum-duration rule
 - [x] Run the validator once at every stage entry, including the initial section in section-level execution.
 - [x] Keep errors concise and actionable; avoid redundant checks inside participant loops.
 
-Completed: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`. The researcher reported all checks in `tests/settings_validator_handoff.md` passing on 2026-09-09, including synthetic tests and the stage/section acceptance sequence. The existing single-muscle bipolar limitation is explicitly rejected and remains a Tier 2.1 follow-up.
+Completed: Agent 4 commit `610de9a`, integrated unchanged as `47a8d2e`. The researcher reported all checks in `tests/settings_validator_handoff.md` passing on 2026-09-09, including synthetic tests and the stage/section acceptance sequence. The later CD-19 implementation added and validated explicit support for a one-row, two-column single-muscle bipolar configuration.
 
 Likely files: a new validator function plus Stages 0–2 and validator tests.
 Coordination note: this task overlaps most entry-point scripts and should be integrated before parallel tasks modify them.
@@ -284,8 +284,8 @@ The authoritative information flow is:
 ### 2.3 Improve run provenance and recoverability
 
 - [x] Approve the lean settings/SET provenance contract (revised CD-20).
-- [x] Add the settings timestamp, operating system, MATLAB version, EEGLAB version, available relevant-plugin versions, and optional pipeline Git commit directly to `sets` before its existing MAT/TXT save (Agent 12, integrated as `16e719a`; MATLAB validation pending).
-- [x] Add one creation timestamp under `EMG.etc` immediately before each Stage 1 raw-SET and Stage 2 preprocessed-SET save (Agent 12, integrated as `16e719a`; representative EEGLAB validation pending).
+- [x] Add the settings timestamp, operating system, MATLAB version, EEGLAB version, available relevant-plugin versions, and optional pipeline Git commit directly to `sets` before its existing MAT/TXT save (Agent 12, integrated as `16e719a`; researcher validation passed on 2026-09-23).
+- [x] Add one creation timestamp under `EMG.etc` immediately before each Stage 1 raw-SET and Stage 2 preprocessed-SET save (Agent 12, integrated as `16e719a`; representative Stage 1 and Stage 2 validation passed on 2026-09-23).
 - [x] Keep existing data folders, output filenames, CSV schemas, cumulative checkpoint behavior, and researcher-controlled overwriting unchanged.
 - [x] Reject Agent 11 implementation `7de164c`; do not integrate its run IDs, manifests, CSV aggregation/replacement, overwrite setting, helper functions, or related tests.
 
@@ -300,14 +300,14 @@ The authoritative information flow is:
 
 ### 3.1 Build user-facing documentation
 
-- [ ] Create a concise README covering requirements, folder layout, configuration, stage order, and expected outputs.
+- [x] Create a concise README covering requirements, folder layout, configuration, stage order, and expected outputs.
 - [ ] Convert `CONCEPTUAL_DECISIONS.md` into focused GitHub wiki pages after the concepts stabilize.
 - [ ] Add worked examples using synthetic or non-sensitive data only.
 
 ### 3.2 Prepare a reproducible release
 
 - [ ] Choose a public versioning convention and update the script version headers consistently.
-- [ ] Add citation, license, authorship, and upstream-attribution information.
+- [x] Add citation, license, authorship, and upstream-attribution information.
 - [ ] Define a release checklist including MATLAB tests and representative EEGLAB integration runs.
 
 ## Recommended execution order
@@ -322,6 +322,8 @@ The authoritative information flow is:
 Agent 0 may change this order when dependencies or researcher priorities change, but should record the reason here.
 
 ## Validation baseline
+
+On 2026-09-23 the researcher reported completing all checks in `tests/lightweight_provenance_handoff.md` for Agent 12's CD-20 implementation, including the focused MATLAB R2024b suite and representative runs of Stage 0, Stage 1, and Stage 2. The recorded settings metadata, MAT/TXT outputs, and SET creation timestamps behaved as intended.
 
 On 2026-09-22 the researcher reported that the Tier 2.1 settings-validator and production-section channel tests passed in MATLAB R2024b. Stage 0 and Stage 2 also completed successfully on representative data and produced the expected output under the explicit CD-19 channel contract. Agent 10's implementation was integrated as `4e95048`. The only initial Code Analyzer message identified an obsolete suppression in the validator test; the suppression was removed without executable changes in `6cea1ed`, after which the targeted analyzer check returned no messages.
 

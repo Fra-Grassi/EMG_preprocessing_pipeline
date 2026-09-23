@@ -24,6 +24,4 @@ The bundled files [`resources/chanloc_biosemi_64.elp`](resources/chanloc_biosemi
 
 BioSemi's [headcap page](https://www.biosemi.com/headcap.htm) describes the electrode-position coordinates of its standard headcaps as downloadable and links to the general workbook. BioSemi has not been represented here as licensing that workbook under CC BY 4.0, and BioSemi does not endorse this repository.
 
-### Redistribution review question
-
-The cited BioSemi pages make the coordinate workbook publicly downloadable, but the reviewed material does not state redistribution terms for the workbook or converted coordinate files. Before a public release, the repository maintainer should confirm that redistributing these two converted resource files is permitted or replace them with a clearly licensed alternative. The repository-level CC BY 4.0 declaration should not be interpreted as granting rights that the repository author does not hold in source material from BioSemi.
+The repository maintainer treats these internally generated format conversions as project resources covered by the repository's CC BY 4.0 license. The BioSemi link is retained to document the source of the underlying coordinate values; users are not asked to cite BioSemi separately when using these converted files.

@@ -1,7 +1,7 @@
 # EMG Preprocessing Pipeline: Conceptual Decisions
 
-Last updated: 2026-09-22
-Latest researcher-tested implementation: CD-19 channel selection and re-referencing, integrated in `4e95048`; deterministic tests, a representative Stage 0/Stage 2 run, and targeted analyzer checks were reported passing on 2026-09-22.
+Last updated: 2026-09-23
+Latest researcher-tested implementation: CD-20 lightweight settings and SET provenance, integrated in `16e719a`; the focused MATLAB checks and representative Stage 0, Stage 1, and Stage 2 runs were reported passing on 2026-09-23.
 
 ## Purpose and scope
 
@@ -38,7 +38,7 @@ Agents should cite these identifiers in implementation handoffs and wiki drafts.
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
 | CD-18 | Write each participant's rejection-statistics checkpoint immediately after its statistics are calculated, using only processed rows so far; represent a configured condition with zero trials by missing count and percentage (`NaN`). | Implemented; revised MATLAB tests and real-data check passed on 2026-09-18 |
 | CD-19 | Configure EMG channel handling explicitly as `single` or `bipolar`; in bipolar mode each row is one muscle and is calculated as first channel minus second channel. | Implemented; deterministic and representative-run validation reported on 2026-09-22 |
-| CD-20 | Keep provenance lightweight: save environment metadata inside the existing Stage 0 `sets` structure and add a creation timestamp to each Stage 1 or Stage 2 SET immediately before saving. | Implemented; MATLAB and representative-data validation pending |
+| CD-20 | Keep provenance lightweight: save environment metadata inside the existing Stage 0 `sets` structure and add a creation timestamp to each Stage 1 or Stage 2 SET immediately before saving. | Implemented and researcher-validated on 2026-09-23 |
 
 ## Lightweight settings and SET provenance (CD-20)
 
@@ -50,7 +50,7 @@ Immediately before Stage 1 saves a raw SET and Stage 2 saves a preprocessed SET,
 
 Existing folder choices, output filenames, cumulative CSV behavior, checkpoint timing, and overwrite behavior remain unchanged. Researchers are responsible for organizing processing occasions and deciding how to handle pre-existing outputs. This decision supersedes the earlier unimplemented run-ID/manifest proposal. Agent 11's corresponding implementation commit `7de164c` is rejected and must not be integrated.
 
-Agent 12 implemented this lean contract in commit `16e719a`. Static scope and line-ending checks passed; the focused MATLAB R2024b tests and representative EEGLAB acceptance procedure remain to be run by the researcher.
+Agent 12 implemented this lean contract in commit `16e719a`. Static scope and line-ending checks passed. On 2026-09-23, the researcher reported completing the focused MATLAB R2024b checks and the full handoff acceptance procedure, including representative runs of all three stages, without issues.
 
 ## EMG channel selection and re-referencing (CD-19)
 
@@ -374,14 +374,13 @@ All deterministic tests passed in MATLAB R2024b. The helper-backed and final inl
 
 Section 0.2 contains assignments and explanatory comments only. Resources-folder checking and output-folder creation are in Section 0.1; Section 0.3 calls the validator. Settings-only checks cover supported options, dimensions, combinations, paths and timing relationships. Data-dependent checks remain in processing code, and standalone trigger-shifting checks remain available. Section execution starts with the stage's entry section and runs each section once.
 
-Agent 4 commit `610de9a` was integrated unchanged as `47a8d2e`; the researcher reported all handoff checks passing on 2026-09-09. The validator preserves and explains the existing restriction that a single-row channel array selects independent channels, so one bipolar muscle is not yet supported. Resolving that interface remains Tier 2.1 work.
+Agent 4 commit `610de9a` was integrated unchanged as `47a8d2e`; the researcher reported all handoff checks passing on 2026-09-09. CD-19 subsequently replaced shape-based channel inference with the explicit `single` and `bipolar` modes. The current validator accepts a one-row, two-column channel pair as one bipolar muscle and checks the corresponding mode-specific dimensions and channel-name count.
 
 ## Decisions intentionally deferred
 
 The following points remain outside the completed implementation work:
 
 - behavior when every configured condition has zero trials, beyond the defined `NaN` rejection statistics for an individually absent condition;
-- how output files should encode the exact settings and software versions used for a run;
 - formal compatibility claims beyond the MATLAB R2024b tests already performed.
 
 These items should be resolved through the tiered tasks in `PROJECT_PLAN.md`. When a decision is made, this document should be updated in the same integration cycle.
