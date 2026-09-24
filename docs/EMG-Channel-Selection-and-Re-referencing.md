@@ -56,7 +56,7 @@ This gives channel 3 minus channel 4, named `ZM`. Keep both numbers on the same 
 
 ## Checks before processing
 
-Stage 0 checks that you have entered a recognised mode, positive whole-number channel positions, the right arrangement of numbers, and one name per resulting muscle signal. After changing these settings, run Stage 0 again to save them. Settings from older development versions are not filled in automatically; use the current Stage 0 script.
+Stage 0 checks that you have entered a recognised mode, positive whole-number channel positions, the right arrangement of numbers, and one name per resulting muscle signal. After changing these settings, run Stage 0 again to save them.
 
 Stage 2 also checks the recording itself. For example, requesting channel 8 from a dataset with only six channels stops processing with an error. If channel-location information is present, it must include all selected channels. An entirely empty set of locations is allowed, but a partially populated one that does not reach the requested channels causes an error. Both checks happen before channel selection changes the dataset.
 

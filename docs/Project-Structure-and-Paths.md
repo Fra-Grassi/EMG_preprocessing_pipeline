@@ -11,7 +11,7 @@ Stage 0 collects your choices in `sets`, MATLAB's name for the collection of set
 
 The saved settings also include when they were created and information about the software environment. Keep these files with your analysis records: they help you check which settings you saved. They may contain local paths and study information, so review them before sharing.
 
-Editing the Stage 0 script alone does not update the settings that later stages use. **Run Stage 0 again after changing a setting.** Do the same after updating the pipeline: older development settings are not updated automatically. For channel examples, see [EMG Channel Selection and Re-referencing](EMG-Channel-Selection-and-Re-referencing.md#configuration-in-stage-0).
+Editing the Stage 0 script alone does not update the settings that later stages use. **Run Stage 0 again after changing a setting.** Do the same after updating the pipeline: older development settings are not updated automatically.
 
 ## How the project directory is located
 

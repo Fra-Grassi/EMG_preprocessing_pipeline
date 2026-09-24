@@ -98,15 +98,15 @@ Rejected trials contribute to none of these calculations. If you ask to keep rej
 
 The first four columns identify the participant, condition, trial, and bin: `subject_ID`, `condition`, `trial_number`, and `bin`. Each muscle then has a column for its unstandardized measure and, if requested, an adjacent column for its z score.
 
-For a muscle named `M1`, possible pairs are:
+The baseline method and standardization method are separate choices. For a muscle named `M1`, any of the three unstandardized measures can be accompanied by either type of z score:
 
-```text
-M1_MAV_raw,        M1_MAV_z_muscle
-M1_MAV_difference, M1_MAV_z_muscle
-M1_MAV_ratio,      M1_MAV_z_subject
-```
+| Baseline correction | Unstandardized column | Added with muscle-wise standardization | Added with subject-pooled standardization |
+| --- | --- | --- | --- |
+| None | `M1_MAV_raw` | `M1_MAV_z_muscle` | `M1_MAV_z_subject` |
+| Subtraction | `M1_MAV_difference` | `M1_MAV_z_muscle` | `M1_MAV_z_subject` |
+| Division | `M1_MAV_ratio` | `M1_MAV_z_muscle` | `M1_MAV_z_subject` |
 
-The first suffix records whether you used no baseline correction, subtraction, or division. The z-score suffix records muscle-wise or subject-pooled standardization. Only the columns matching your settings are written. With standardization disabled, only the unstandardized column is saved for each muscle.
+The first suffix records whether you used no baseline correction, subtraction, or division. The z-score suffix records muscle-wise or subject-pooled standardization. Only the unstandardized column and the one z-score column matching your chosen method are written. With standardization disabled, only the unstandardized column is saved for each muscle.
 
 ## How the calculations were checked
 
