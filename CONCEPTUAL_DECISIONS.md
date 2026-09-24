@@ -32,7 +32,7 @@ Agents should cite these identifiers in implementation handoffs and documentatio
 | CD-11 | Convert all event types to MATLAB character vectors without altering experimenter-encoded character content; configure trigger codes as characters and add no audit field. | Implemented and validated |
 | CD-12 | Treat Stage 2 section execution as non-idempotent: users run each section once and rely on completion messages rather than per-section duplicate-execution guards. | Implemented and validated existing behavior |
 | CD-13 | Add signed delays to event latency, preserving the existing positive-delay direction; convert milliseconds to whole samples with `round(delay_ms * srate / 1000)`. | Integrated; synthetic and representative-run validation reported |
-| CD-14 | Configure the range-divisor threshold (default 4) and crossing duration in milliseconds (default 20 ms); use the nearest zero-time sample with positive-side tie breaking. | Integrated; synthetic and representative-run validation reported |
+| CD-14 | Configure a baseline-to-peak excursion divisor (default 4) and crossing duration in milliseconds (default 20 ms); use the nearest zero-time sample with positive-side tie breaking. | Integrated; focused synthetic tests passed on 2026-09-24 |
 | CD-15 | Add participant-level median shifting and median fallback for missing trial estimates, with warnings and separate diagnostics. | Integrated; synthetic and representative-run validation reported |
 | CD-16 | Require settings from the current Stage 0; do not add compatibility fallbacks for saved development settings. | Implemented; researcher rerun passed |
 | CD-17 | Use the raw BDF filename stem as the text participant ID; load from the directory returned by the file selector and stop cleanly on cancellation. Leave filename correctness to the user. | Implemented; researcher tests and representative runs passed on 2026-09-18 |
@@ -99,11 +99,15 @@ The offset uses MATLAB's ordinary `round` behavior (nearest integer, with half-i
 
 ## Photodiode detection parameters (CD-14)
 
-Keep the existing EEGLAB signal preparation: continuous CleanLine processing, epoching, baseline subtraction, rectification, and second baseline subtraction. The threshold remains `range(signal) / divisor`, with user-configurable divisor defaulting to 4 and comparison `>=`. Estimate the range over the detection segment from the chosen zero-time anchor to epoch end; do not add the minimum signal amplitude to the threshold.
+Keep the existing EEGLAB signal preparation: continuous CleanLine processing, epoching, baseline subtraction, rectification, and second baseline subtraction. Calculate the processed baseline level as the mean over the inclusive −29 to 0 ms interval. From the chosen zero-time anchor to epoch end, calculate the positive response excursion as `max(search signal) - baseline level`. With a user-configurable divisor defaulting to 4, use `baseline level + response excursion / divisor` as the threshold and comparison `>=`. Do not define the threshold from the post-trigger minimum.
+
+A nonfinite or nonpositive response excursion makes that trial's estimate unavailable, so it follows the approved median fallback. This keeps the criterion anchored to the processed pre-trigger level and invariant to a constant vertical offset.
 
 Select the sample closest to zero, whether negative or positive; choose the positive sample when equally close. Return the first sample of the first qualifying sustained run, correcting the existing one-sample indexing error.
 
 Expose minimum crossing duration in milliseconds, defaulting to 20 ms. Convert using `max(1, ceil(minimum_duration_ms * srate / 1000))` consecutive samples, with a positive configured duration. This adopts sample-count duration (`n / srate`), matching the original run-length convention, rather than elapsed time between the first and last sample. The ceiling ensures the sample-count duration is at least the requested duration; it is distinct from CD-13's nearest-sample rounding of delay offsets. At 512 Hz, 20 ms corresponds to 10.24 samples and therefore requires 11 consecutive samples.
+
+The baseline-relative threshold was integrated in `7cc543f`. On 2026-09-24, the researcher reported all focused MATLAB tests passing. The only warning was the expected omitted-epoch warning exercised by `testOmittedAcceptedPositionsAndWarning`.
 
 ## Median shifting and fallback (CD-15)
 

@@ -144,9 +144,9 @@ sets.shift_markers = [];
 sets.shift_window = [-0.06, 0.1];
 
 % Photodiode signal threshold
-% Numeric value indicating the proportion of the photodiode signal range to consider as actual response. 
-% E.g., a value of 4, means that signal above 1/4th of the total signal range is considered actual photodiode response.
-% Used for 'variable' and 'median': processed signal >= range(signal)/divisor.
+% Divisor that places the threshold between the processed pre-trigger baseline
+% and the post-trigger peak. E.g., 4 sets the threshold one quarter of the
+% positive baseline-to-peak excursion above the baseline level.
 sets.shift_threshold = 4;
 
 % Sustained crossing duration in ms (sample-count duration, CD-14).

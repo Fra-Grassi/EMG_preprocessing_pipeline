@@ -30,7 +30,7 @@ Use `sets.shift_markers` to list the event codes you want to shift. If you leave
 For either photodiode mode, also review:
 
 - `sets.shift_window`: the epoch around each selected event, which must include the −29 to 0 ms baseline and data after the trigger;
-- `sets.shift_threshold`: the divisor used to calculate the detection threshold from the signal's range;
+- `sets.shift_threshold`: the divisor used to place the detection threshold between the processed pre-trigger baseline and the post-trigger peak;
 - `sets.shift_minimum_duration_ms`: how long the signal must stay at or above that threshold.
 
 The Stage 0 example uses a divisor of 4 and a duration of 20 ms. Check their suitability for your photodiode signal and experimental setup. Save your choices by running the current Stage 0 before Stage 1; older settings files are not supplemented with missing parameters automatically.
@@ -50,13 +50,15 @@ The photodiode waveform is prepared in the following order:
 
 An exact zero-time sample is not necessary. If two samples lie equally far on either side of zero, the later one is used. Photodiode processing requires EEGLAB and CleanLine.
 
-For each epoch, the threshold is calculated from the range of the processed signal over the search interval:
+For each epoch, the pipeline calculates the mean of the processed signal over the inclusive −29 to 0 ms baseline. It then finds the maximum from the zero-time anchor to the end of the epoch and calculates:
 
 ```text
-threshold = (maximum − minimum) / divisor
+threshold = baseline mean + (post-trigger maximum − baseline mean) / divisor
 ```
 
-With a divisor of 4, this is one quarter of that range. The minimum amplitude is not added back to the threshold. The signal must then stay **at or above** the threshold for the requested duration. The first sample of the first qualifying stretch gives the detected onset.
+With a divisor of 4, the threshold lies one quarter of the way from the baseline level to the post-trigger peak. This makes the criterion insensitive to a constant vertical offset in the processed waveform. The signal must then stay **at or above** the threshold for the requested duration. The first sample of the first qualifying stretch gives the detected onset.
+
+If the post-trigger maximum does not give a finite positive excursion above baseline, that epoch has no usable onset estimate. It is handled by the same median fallback used for other unavailable estimates.
 
 Duration is converted to a number of consecutive samples by rounding upwards:
 
