@@ -8,7 +8,7 @@ function [delays_ms, status, diagnostics] = ...
 %
 %   OPTIONS is a scalar structure. Every field is required; there are no
 %   scientific defaults:
-%     threshold_mode       - 'absolute', 'range_divisor_unanchored', or
+%     threshold_mode       - 'absolute', 'baseline_excursion_divisor', or
 %                            'range_fraction_above_minimum'
 %     threshold_value      - finite scalar or one finite value per trial
 %     threshold_scope      - 'search_window' or 'full_trial'
@@ -17,10 +17,14 @@ function [delays_ms, status, diagnostics] = ...
 %     zero_time_policy     - 'require_exact', 'first_nonnegative',
 %                            'nearest_earlier', or 'nearest_later'
 %
-%   The unanchored range-divisor threshold is range(signal) / value. The
-%   above-minimum threshold is min(signal) + value * range(signal). The
-%   relevant signal is selected by threshold_scope. Supplying an absolute
-%   threshold bypasses a range-based definition.
+%   Baseline-excursion mode uses the mean of processed samples in inclusive
+%   [-29,0] ms and requires search_window scope. Its threshold is baseline +
+%   (max(search_signal) - baseline) / value. A nonfinite or nonpositive
+%   excursion returns no_positive_excursion, with no threshold or delay;
+%   an empty baseline interval also produces a nonfinite excursion.
+%   Above-minimum mode uses min(signal) + value * range(signal), with signal
+%   selected by threshold_scope. Absolute mode uses the supplied amplitude.
+%   These latter modes remain test-only alternatives, not production modes.
 %
 %   DIAGNOSTICS is one structure per input trial and records the search
 %   anchor, computed amplitude threshold, detected sample and run length.
@@ -55,6 +59,8 @@ diagnostic_template = struct( ...
     'search_start_index', NaN, ...
     'search_start_time_ms', NaN, ...
     'threshold_signal_range', NaN, ...
+    'baseline_level', NaN, ...
+    'response_excursion', NaN, ...
     'threshold_amplitude', NaN, ...
     'detected_sample_index', NaN, ...
     'detected_search_index', NaN, ...
@@ -88,14 +94,29 @@ for trial_index = 1:n_trials
         threshold_samples = processed_trials(trial_index, :);
     end
 
-    [threshold_amplitude, threshold_signal_range] = calculate_threshold( ...
-        threshold_samples, threshold_mode, threshold_values(trial_index));
-    diagnostics(trial_index).threshold_signal_range = threshold_signal_range;
-    diagnostics(trial_index).threshold_amplitude = threshold_amplitude;
-    if ~strcmp(threshold_mode, 'absolute') && threshold_signal_range == 0
-        status(trial_index) = "zero_range";
-        continue
+    if strcmp(threshold_mode, 'baseline_excursion_divisor')
+        baseline_level = mean(double(processed_trials( ...
+            trial_index, times_ms >= -29 & times_ms <= 0)));
+        response_excursion = max(double(threshold_samples)) - baseline_level;
+        diagnostics(trial_index).baseline_level = baseline_level;
+        diagnostics(trial_index).response_excursion = response_excursion;
+        if ~isfinite(response_excursion) || response_excursion <= 0
+            status(trial_index) = "no_positive_excursion";
+            continue
+        end
+        threshold_amplitude = baseline_level + ...
+            response_excursion / threshold_values(trial_index);
+    else
+        [threshold_amplitude, threshold_signal_range] = calculate_threshold( ...
+            threshold_samples, threshold_mode, threshold_values(trial_index));
+        diagnostics(trial_index).threshold_signal_range = threshold_signal_range;
+        if ~strcmp(threshold_mode, 'absolute') && threshold_signal_range == 0
+            diagnostics(trial_index).threshold_amplitude = threshold_amplitude;
+            status(trial_index) = "zero_range";
+            continue
+        end
     end
+    diagnostics(trial_index).threshold_amplitude = threshold_amplitude;
 
     search_signal = processed_trials(trial_index, search_start_index:n_samples);
     if strcmp(threshold_comparison, 'greater_than_or_equal')
@@ -201,17 +222,17 @@ function validate_option_values(threshold_mode, threshold_values, ...
         zero_time_policy)
 valid_threshold_modes = { ...
     'absolute', ...
-    'range_divisor_unanchored', ...
+    'baseline_excursion_divisor', ...
     'range_fraction_above_minimum'};
 if ~ismember(threshold_mode, valid_threshold_modes)
     error('detect_photodiode_delays_reference:InvalidThresholdMode', ...
         'Unsupported threshold_mode: %s.', threshold_mode);
 end
 
-if strcmp(threshold_mode, 'range_divisor_unanchored') && ...
+if strcmp(threshold_mode, 'baseline_excursion_divisor') && ...
         any(threshold_values <= 0)
     error('detect_photodiode_delays_reference:InvalidThreshold', ...
-        'A range divisor must be greater than zero.');
+        'A baseline-excursion divisor must be greater than zero.');
 end
 if strcmp(threshold_mode, 'range_fraction_above_minimum') && ...
         any(threshold_values < 0 | threshold_values > 1)
@@ -222,6 +243,11 @@ end
 if ~ismember(threshold_scope, {'search_window', 'full_trial'})
     error('detect_photodiode_delays_reference:InvalidThresholdScope', ...
         'Unsupported threshold_scope: %s.', threshold_scope);
+end
+if strcmp(threshold_mode, 'baseline_excursion_divisor') && ...
+        ~strcmp(threshold_scope, 'search_window')
+    error('detect_photodiode_delays_reference:InvalidThresholdScope', ...
+        'Baseline-excursion mode requires search_window scope.');
 end
 if ~ismember(threshold_comparison, ...
         {'greater_than_or_equal', 'greater_than'})
@@ -278,8 +304,6 @@ function [threshold, signal_range] = calculate_threshold(samples, mode, value)
 signal_range = max(samples) - min(samples);
 if strcmp(mode, 'absolute')
     threshold = value;
-elseif strcmp(mode, 'range_divisor_unanchored')
-    threshold = signal_range / value;
 else
     signal_minimum = min(samples);
     threshold = signal_minimum + value * signal_range;

@@ -5,6 +5,9 @@ function [EEGout, diagnostics] = shift_triggers(EEGin, target_types, method, ...
 %   cell of exact character codes, or one character code. Photodiode modes
 %   require EPOCH_WINDOW in seconds including [-.029,0] and post-trigger data.
 %   DIVISOR defaults to 4; MINIMUM_DURATION_MS defaults to 20; SHOW_PLOTS to true.
+%   Threshold = processed baseline mean + (search peak - baseline mean)/DIVISOR.
+%   Baseline uses [-29,0] ms inclusively. Trials without a finite positive
+%   excursion are unavailable estimates and follow the existing median fallback.
 %   Run length = max(1,ceil(duration_ms*srate/1000)); offset = round(delay_ms*srate/1000).
 %   Variable substitutes the recording median for unavailable estimates;
 %   median applies it to all targets. Median is computed in ms before rounding.
@@ -143,6 +146,7 @@ else
         error('shift_triggers:InvalidTimes', 'Epoch times must be finite and strictly increasing.');
     end
     zero_anchor_index = find(abs(times) == min(abs(times)), 1, 'last');
+    baseline_samples = times >= -29 & times <= 0;
     for trial = 1:numel(retained_rows)
         row = retained_rows(trial);
         epoch_index(row) = trial;
@@ -151,12 +155,13 @@ else
             status(row) = "nonfinite_signal";
             continue
         end
-        signal_range = max(signal) - min(signal);
-        if signal_range == 0
-            status(row) = "zero_range";
+        baseline_level = mean(double(diode.data(1, baseline_samples, trial)));
+        response_excursion = max(signal) - baseline_level;
+        if ~isfinite(response_excursion) || response_excursion <= 0
+            status(row) = "no_positive_excursion";
             continue
         end
-        threshold(row) = signal_range / divisor;
+        threshold(row) = baseline_level + response_excursion / divisor;
         transitions = diff([false, signal >= threshold(row), false]);
         starts = find(transitions == 1);
         stops = find(transitions == -1) - 1;

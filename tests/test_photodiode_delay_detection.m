@@ -182,39 +182,81 @@ verifyEqual(testCase, [diagnostics.trial_index]', (1:4)');
 end
 
 function testThresholdDefinitionsAreExplicit(testCase)
-times_ms = [0, 1, 2, 3];
-processed_trials = [-2, 0, 2, 6];
+times_ms = [-29, -20, 0, 1, 2, 3];
+processed_trials = [2, 2, 2, -10, 4, 10];
 
-unanchored_options = reference_options( ...
-    'range_divisor_unanchored', 4, 1, 'require_exact');
-[unanchored_delay, ~, unanchored_diagnostics] = ...
+baseline_options = reference_options( ...
+    'baseline_excursion_divisor', 4, 1, 'require_exact');
+[baseline_delay, ~, baseline_diagnostics] = ...
     detect_photodiode_delays_reference( ...
-    processed_trials, times_ms, unanchored_options);
-verifyEqual(testCase, unanchored_diagnostics.threshold_amplitude, 2);
-verifyEqual(testCase, unanchored_delay, 2);
+    processed_trials, times_ms, baseline_options);
+verifyEqual(testCase, baseline_diagnostics.threshold_amplitude, 4);
+verifyEqual(testCase, baseline_delay, 2);
 
 anchored_options = reference_options( ...
     'range_fraction_above_minimum', 0.25, 1, 'require_exact');
 [anchored_delay, ~, anchored_diagnostics] = ...
     detect_photodiode_delays_reference( ...
     processed_trials, times_ms, anchored_options);
-verifyEqual(testCase, anchored_diagnostics.threshold_amplitude, 0);
-verifyEqual(testCase, anchored_delay, 1);
+verifyEqual(testCase, anchored_diagnostics.threshold_amplitude, -5);
+verifyEqual(testCase, anchored_delay, 0);
 end
 
-function testZeroRangeHasNeutralStatusForRangeThreshold(testCase)
-times_ms = [0, 1, 2];
-processed_trials = [0, 0, 0];
+function testNoPositiveExcursionHasNeutralStatus(testCase)
+times_ms = [-20, 0, 1, 2];
+processed_trials = [0 0 0 0; 10 10 10 10; 10 6 5 4];
 options = reference_options( ...
-    'range_divisor_unanchored', 4, 2, 'require_exact');
+    'baseline_excursion_divisor', 4, 2, 'require_exact');
 
 [delay_ms, status, diagnostics] = detect_photodiode_delays_reference( ...
     processed_trials, times_ms, options);
 
-verifyEqual(testCase, status, "zero_range");
-verifyTrue(testCase, isnan(delay_ms));
-verifyEqual(testCase, diagnostics.threshold_signal_range, 0);
-verifyEqual(testCase, diagnostics.threshold_amplitude, 0);
+verifyEqual(testCase, status, repmat("no_positive_excursion", 3, 1));
+verifyTrue(testCase, all(isnan(delay_ms)));
+verifyEqual(testCase, [diagnostics.response_excursion], [0 0 -2]);
+verifyTrue(testCase, all(isnan([diagnostics.threshold_amplitude])));
+end
+
+function testBaselineOffsetInvarianceAndSustainedRun(testCase)
+% Only [-29,0] inclusive contributes to baseline: mean([2 4 6]) = 4.
+times_ms = [-40 -30 -29 -10 0 1 2 3 4 5 6];
+signal = [100 100 2 4 6 -30 8 3 8 8 20];
+options = reference_options('baseline_excursion_divisor', 4, 2, 'require_exact');
+[delay, status, d] = detect_photodiode_delays_reference( ...
+    [signal; signal + 100; signal - 100], times_ms, options);
+verifyEqual(testCase, delay, [4;4;4]);
+verifyEqual(testCase, status, repmat("detected", 3, 1));
+verifyEqual(testCase, [d.baseline_level], [4 104 -96]);
+verifyEqual(testCase, [d.response_excursion], [16 16 16]);
+verifyEqual(testCase, [d.threshold_amplitude], [8 108 -92]);
+verifyEqual(testCase, [d.detected_sample_index], [9 9 9]);
+verifyEqual(testCase, [d.qualifying_run_length_samples], [3 3 3]);
+end
+
+function testNegativeSearchMinimumDoesNotSetThreshold(testCase)
+times_ms = [-20 0 1 2 3 4];
+data = [2 2 -10 3 4 10; 2 2 -100 3 4 10];
+options = reference_options('baseline_excursion_divisor', 4, 2, 'require_exact');
+[delay, status, d] = detect_photodiode_delays_reference(data, times_ms, options);
+verifyEqual(testCase, delay, [3;3]);
+verifyEqual(testCase, status, ["detected";"detected"]);
+verifyEqual(testCase, [d.threshold_amplitude], [4 4]);
+end
+
+function testNonfiniteExcursionAndAbsentBaselineAreNeutral(testCase)
+options = reference_options('baseline_excursion_divisor', 4, 1, 'nearest_later');
+% Finite inputs can still produce an infinite difference.
+[delay, status] = detect_photodiode_delays_reference( ...
+    [-realmax 0 realmax], [-20 0 1], options);
+verifyEqual(testCase, status, "no_positive_excursion");
+verifyTrue(testCase, isnan(delay));
+[delay, status] = detect_photodiode_delays_reference([0 8], [1 2], options);
+verifyEqual(testCase, status, "no_positive_excursion");
+verifyTrue(testCase, isnan(delay));
+options.threshold_scope = 'full_trial';
+verifyError(testCase, @() detect_photodiode_delays_reference( ...
+    [0 8], [0 1], options), ...
+    'detect_photodiode_delays_reference:InvalidThresholdScope');
 end
 
 function testThresholdScopeAndComparisonAreExplicit(testCase)
@@ -222,11 +264,11 @@ times_ms = [-2, -1, 0, 1, 2];
 processed_trials = [-10, 10, 0, 4, 4];
 
 search_options = reference_options( ...
-    'range_divisor_unanchored', 2, 1, 'require_exact');
+    'range_fraction_above_minimum', .75, 1, 'require_exact');
 [search_delay, search_status, search_diagnostics] = ...
     detect_photodiode_delays_reference( ...
     processed_trials, times_ms, search_options);
-verifyEqual(testCase, search_diagnostics.threshold_amplitude, 2);
+verifyEqual(testCase, search_diagnostics.threshold_amplitude, 3);
 verifyEqual(testCase, search_status, "detected");
 verifyEqual(testCase, search_delay, 1);
 
@@ -235,7 +277,7 @@ full_options.threshold_scope = 'full_trial';
 [full_delay, full_status, full_diagnostics] = ...
     detect_photodiode_delays_reference( ...
     processed_trials, times_ms, full_options);
-verifyEqual(testCase, full_diagnostics.threshold_amplitude, 10);
+verifyEqual(testCase, full_diagnostics.threshold_amplitude, 5);
 verifyEqual(testCase, full_status, "no_crossing");
 verifyTrue(testCase, isnan(full_delay));
 
@@ -272,7 +314,7 @@ verifyError(testCase, ...
     'detect_photodiode_delays_reference:InvalidThreshold');
 
 options = reference_options( ...
-    'range_divisor_unanchored', 0, 1, 'require_exact');
+    'baseline_excursion_divisor', 0, 1, 'require_exact');
 verifyError(testCase, ...
     @() detect_photodiode_delays_reference( ...
     processed_trials, times_ms, options), ...

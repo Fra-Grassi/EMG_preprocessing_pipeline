@@ -70,7 +70,7 @@ TRIGGER_SHIFT_TEST.data = [0 0 0 8 8 8 0 0; zeros(1,8); 0 0 0 8 0 0 0 0];
 [~,d] = shift_triggers(fixture(), {'121','S121','S 121'}, 'variable', [-.06 .1], 4, 4, false);
 verifyEqual(testCase, d.successful_count, 1);
 verifyEqual(testCase, d.events.applied_delay_ms, [10;10;10]);
-verifyEqual(testCase, d.events.status, ["no_crossing";"detected";"zero_range"]);
+verifyEqual(testCase, d.events.status, ["no_crossing";"detected";"no_positive_excursion"]);
 verifyTrue(testCase, isnan(d.events.measured_delay_ms(1)));
 end
 
@@ -158,6 +158,53 @@ verifyEqual(testCase, d.minimum_run_samples, 10);
 verifyEqual(testCase, d.events.measured_delay_ms, [2;2]);
 [~,d] = shift_triggers(fixture(), {'121','S121'}, 'variable', [-.06 .1], 2, [], false);
 verifyEqual(testCase, d.events.measured_delay_ms, [22;22]);
+end
+
+function testBaselineRelativeThresholdIsOffsetInvariant(testCase)
+global TRIGGER_SHIFT_TEST
+% Baseline mocks are identities: deliberately exercise a nonzero processed
+% baseline. Positive arrays also pass through production abs unchanged.
+TRIGGER_SHIFT_TEST.times = [-40 -30 -29 -10 0 10 20 30 40 50];
+signal = [100 100 2 4 6 8 3 8 8 20];
+TRIGGER_SHIFT_TEST.data = [signal; signal + 100];
+[out,d] = shift_triggers(fixture(), {'121','S121'}, ...
+    'variable', [-.06 .1], 4, 4, false);
+verifyEqual(testCase, d.events.threshold, [108;8]);
+verifyEqual(testCase, d.events.measured_delay_ms, [30;30]);
+verifyEqual(testCase, d.events.detected_sample, [8;8]);
+verifyEqual(testCase, [out.event(1:2).latency], [815.75 215.25]);
+end
+
+function testNonpositiveExcursionsUseExistingMedianFallback(testCase)
+global TRIGGER_SHIFT_TEST
+TRIGGER_SHIFT_TEST.accepted = 1:4;
+% Chronological targets: event 2, event 3, event 4, event 1.
+% Flat elevated and declining epochs must not contribute zero-delay estimates.
+TRIGGER_SHIFT_TEST.data = [ ...
+    2 2 2 10 10 10 2 2; ...
+    10 10 10 10 10 10 10 10; ...
+    10 10 6 5 4 3 2 1; ...
+    2 2 2 2 2 14 14 14];
+for method = {'variable','median'}
+    [out,d] = shift_triggers(fixture(), {'121','S121','S 121','121 '}, ...
+        method{1}, [-.06 .1], 4, 4, false);
+    verifyEqual(testCase, d.successful_count, 2);
+    verifyEqual(testCase, d.median_delay_ms, 20);
+    verifyEqual(testCase, d.events.status, ...
+        ["detected";"detected";"no_positive_excursion";"no_positive_excursion"]);
+    verifyEqual(testCase, d.events.measured_delay_ms(1:2), [30;10]);
+    verifyTrue(testCase, all(isnan(d.events.measured_delay_ms(3:4))));
+    verifyTrue(testCase, all(isnan(d.events.threshold(3:4))));
+    if strcmp(method{1}, 'variable')
+        expected = [30;10;20;20];
+    else
+        expected = [20;20;20;20];
+    end
+    verifyEqual(testCase, d.events.applied_delay_ms, expected);
+    verifyEqual(testCase, d.events.sample_offset, round(expected*.5));
+    verifyEqual(testCase, [out.event(1:4).latency]', ...
+        d.events.original_latency + round(expected*.5));
+end
 end
 
 function EEG = fixture()
